@@ -11,6 +11,7 @@ app = FastAPI()
 
 origins = [
     "https://pro.openbb.co",
+    "http://localhost:1420"
 ]
 
 app.add_middleware(
@@ -61,6 +62,35 @@ def get_income(ticker: str, period: str, limit: int):
         income_statements = response.json().get('income_statements')
 
         return income_statements
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
+
+@app.get("/balance")
+def get_balance(ticker: str, period: str, limit: int):
+    """Get balance sheet"""
+    # add your API key to the headers
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    # create the URL
+    url = (
+        f'https://api.financialdatasets.ai/financials/balance-sheets'
+        f'?ticker={ticker}'
+        f'&period={period}'
+        f'&limit={limit}'
+    )
+
+    # make API request
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        # parse balance_sheets from the response
+        balance_sheets = response.json().get('balance_sheets')
+
+        return balance_sheets
 
     print(f"Request error {response.status_code}: {response.text}")
     return JSONResponse(
