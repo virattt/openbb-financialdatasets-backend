@@ -26,6 +26,7 @@
             },
             {
                 "type": "text",
+                "value": "annual",
                 "paramName": "period",
                 "label": "Period",
                 "description": "Period to get statements from",

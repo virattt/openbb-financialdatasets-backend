@@ -5,6 +5,7 @@ import requests
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
 
 app = FastAPI()
 
@@ -20,6 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+load_dotenv()
 FINANCIAL_DATASETS_API_KEY = os.getenv("FINANCIAL_DATASETS_API_KEY")
 
 
@@ -50,8 +52,6 @@ def get_income(ticker: str, period: str, limit: int):
         f'&period={period}'
         f'&limit={limit}'
     )
-
-    print(f"Debug - Constructed URL: {url}")
 
     # make API request
     response = requests.get(url, headers=headers)
