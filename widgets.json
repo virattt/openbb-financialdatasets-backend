@@ -1,0 +1,57 @@
+{
+    "income": {
+      "name": "Income Statement",
+      "description": "Financial statements that provide information about a company's revenues, expenses, and profits over a specific period.",
+      "category": "Equity",
+      "subcategory": "Financials",
+      "widgetType": "individual",
+      "widgetId": "income",
+      "endpoint": "income",
+      "gridData": {
+        "w": 80,
+        "h": 20
+      },
+      "data": {
+        "table": {
+          "showAll": true
+        }
+      },
+      "params": [
+            {
+                "type": "ticker",
+                "paramName": "ticker",
+                "label": "Symbol",
+                "value": "AAPL",
+                "description": "Ticker to get income statement for"
+            },
+            {
+                "type": "text",
+                "paramName": "period",
+                "label": "Period",
+                "description": "Period to get statements from",
+                "options": [
+                    {
+                        "value": "annual",
+                        "label": "Annual"
+                    },
+                    {
+                        "value": "quarterly",
+                        "label": "Quarterly"
+                    },
+                    {
+                        "value": "ttm",
+                        "label": "TTM"
+                    }
+                ]
+            },
+            {
+                "type": "number",
+                "paramName": "limit",
+                "label": "Number of Statements",
+                "value": "10",
+                "description": "Number of statements to display"
+            }
+        ]
+    }
+}
+  
