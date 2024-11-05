@@ -119,7 +119,7 @@
       "endpoint": "income-revenue",
       "gridData": {
         "w": 40,
-        "h": 8
+        "h": 12
       },
       "defaultViz": "chart",
       "data": {
