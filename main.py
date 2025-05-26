@@ -442,15 +442,12 @@ def get_crypto_prices(
                     from datetime import datetime
                     try:
                         dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                        price['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                        price['time'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                        price.pop('timestamp', None)  # Remove the original timestamp field
                     except ValueError:
                         pass  # Keep original if parsing fails
         
-        crypto_prices = prices["prices"]
-        for col in crypto_prices:
-            col.pop('ticker', None)
-
-        return crypto_prices
+        return prices
 
     print(f"Request error {response.status_code}: {response.text}")
     return JSONResponse(
@@ -773,3 +770,128 @@ async def get_earnings_press_releases(ticker: str = Query(..., description="Comp
 
     print(f"Request error {response.status_code}: {response.text}")
     return f"# Error\n\nFailed to fetch earnings press releases: {response.text}"
+
+@register_widget({
+    "name": "Stock Prices Historical",
+    "description": "Get historical price data for stocks with customizable intervals and date ranges.",
+    "category": "Equity",
+    "subcategory": "Prices",
+    "type": "table",
+    "widgetId": "stock_prices_historical",
+    "endpoint": "stock_prices_historical",
+    "gridData": {
+        "w": 40,
+        "h": 8
+    },
+    "data": {
+        "table": {
+            "showAll": True,
+            "columnsDefs": [
+                {"field": "time", "headerName": "Time", "width": 180, "cellDataType": "text", "pinned": "left"},
+                {"field": "open", "headerName": "Open", "width": 120, "cellDataType": "number"},
+                {"field": "high", "headerName": "High", "width": 120, "cellDataType": "number"},
+                {"field": "low", "headerName": "Low", "width": 120, "cellDataType": "number"},
+                {"field": "close", "headerName": "Close", "width": 120, "cellDataType": "number"},
+                {"field": "volume", "headerName": "Volume", "width": 120, "cellDataType": "number"},
+                {"field": "vwap", "headerName": "VWAP", "width": 120, "cellDataType": "number"},
+                {"field": "transactions", "headerName": "Transactions", "width": 120, "cellDataType": "number"}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "ticker",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Stock ticker to get historical prices for"
+        },
+        {
+            "type": "text",
+            "value": "day",
+            "paramName": "interval",
+            "label": "Interval",
+            "description": "Time interval for prices",
+            "options": [
+                {"value": "minute", "label": "Minute"},
+                {"value": "day", "label": "Day"},
+                {"value": "week", "label": "Week"},
+                {"value": "month", "label": "Month"},
+                {"value": "year", "label": "Year"}
+            ]
+        },
+        {
+            "type": "number",
+            "paramName": "interval_multiplier",
+            "label": "Interval Multiplier",
+            "value": "1",
+            "description": "Multiplier for the interval (e.g., 5 for every 5 minutes)"
+        },
+        {
+            "type": "date",
+            "paramName": "start_date",
+            "label": "Start Date",
+            "value": "2024-01-01",
+            "description": "Start date for historical data"
+        },
+        {
+            "type": "date",
+            "paramName": "end_date",
+            "label": "End Date",
+            "value": "2024-03-20",
+            "description": "End date for historical data"
+        }
+    ]
+})
+@app.get("/stock_prices_historical")
+def get_stock_prices_historical(
+    ticker: str,
+    interval: str,
+    interval_multiplier: int,
+    start_date: str,
+    end_date: str
+):
+    """Get historical stock prices"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/prices'
+        f'?ticker={ticker}'
+        f'&interval={interval}'
+        f'&interval_multiplier={interval_multiplier}'
+        f'&start_date={start_date}'
+        f'&end_date={end_date}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        prices = data.get('prices', [])
+        
+        # Process and clean up the data
+        for price in prices:
+            # Format timestamp
+            if 'timestamp' in price:
+                timestamp = price['timestamp']
+                if isinstance(timestamp, str):
+                    from datetime import datetime
+                    try:
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        price['time'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        pass
+            
+            # Remove unwanted fields
+            price.pop('timestamp', None)
+            price.pop('time_milliseconds', None)
+            price.pop('ticker', None)
+        
+        return prices
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
