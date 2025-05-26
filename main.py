@@ -114,11 +114,12 @@ def get_widgets():
     },
     "params": [
         {
-            "type": "ticker",
+            "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
             "value": "AAPL",
-            "description": "Ticker to get income statement for"
+            "description": "Ticker to get income statement for (Free tier: AAPL, MSFT, TSLA)",
+            "optionsEndpoint": "/stock_tickers"
         },
         {
             "type": "text",
@@ -199,11 +200,12 @@ def get_income(ticker: str, period: str, limit: int):
     },
     "params": [
         {
-            "type": "ticker",
+            "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
             "value": "AAPL",
-            "description": "Ticker to get balance sheet for"
+            "description": "Ticker to get balance sheet for (Free tier: AAPL, MSFT, TSLA)",
+            "optionsEndpoint": "/stock_tickers"
         },
         {
             "type": "text",
@@ -289,11 +291,12 @@ def get_balance(ticker: str, period: str, limit: int):
     },
     "params": [
         {
-            "type": "ticker",
+            "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
             "value": "AAPL",
-            "description": "Ticker to get company facts for"
+            "description": "Ticker to get company facts for (Free tier: AAPL, MSFT, TSLA)",
+            "optionsEndpoint": "/stock_tickers"
         }
     ]
 })
@@ -681,13 +684,13 @@ async def get_available_tickers():
     },
     "params": [
         {
-            "type": "text",
+            "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "AAL",
             "description": "Company ticker to get earnings press releases for",
             "multiSelect": False,
-            "options": []  # Will be populated dynamically
+            "optionsEndpoint": "/earnings_press_releases/tickers"
         }
     ]
 })
@@ -698,45 +701,43 @@ async def get_tickers():
     """Get available tickers for earnings press releases"""
     return await get_available_tickers()
 
-# Add back the startup event handler
-@app.on_event("startup")
-async def startup_event():
-    """Initialize widget options on startup"""
-    tickers = await get_available_tickers()
-    # Update the widget configuration with available tickers
-    for widget in WIDGETS.values():
-        if widget.get("widgetId") == "earnings_press_releases":
-            for param in widget.get("params", []):
-                if param.get("paramName") == "ticker":
-                    param["options"] = tickers
+@app.get("/stock_tickers")
+def get_stock_tickers():
+    """Get available stock tickers for free tier"""
+    return [
+        {"label": "Apple Inc. (AAPL)", "value": "AAPL"},
+        {"label": "Microsoft Corp. (MSFT)", "value": "MSFT"},
+        {"label": "Tesla Inc. (TSLA)", "value": "TSLA"}
+    ]
 
-@app.get("/earnings_press_releases")
-async def get_earnings_press_releases(ticker: str = Query(..., description="Company ticker")):
-    """Get earnings press releases for a company"""
+@app.get("/stock_news")
+async def get_stock_news(ticker: str = Query(..., description="Stock ticker"), limit: int = 10):
+    """Get news articles for a stock"""
     headers = {
         "X-API-KEY": FINANCIAL_DATASETS_API_KEY
     }
     
     url = (
-        f'https://api.financialdatasets.ai/earnings/press-releases'
+        f'https://api.financialdatasets.ai/news'
         f'?ticker={ticker}'
+        f'&limit={limit}'
     )
 
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
         data = response.json()
-        press_releases = data.get('press_releases', [])
+        articles = data.get('articles', [])
         
-        if not press_releases:
-            return "# No Earnings Press Releases Found\n\nNo earnings press releases were found for this company."
+        if not articles:
+            return "# No News Articles Found\n\nNo news articles were found for this company."
         
-        # Format the press releases into markdown
-        markdown_content = f"# Earnings Press Releases for {ticker}\n\n"
+        # Format the news articles into markdown
+        markdown_content = f"# News Articles for {ticker}\n\n"
         
-        for release in press_releases:
+        for article in articles:
             # Format date
-            publish_date = release.get('publish_date', '')
+            publish_date = article.get('publish_date', '')
             if publish_date:
                 try:
                     from datetime import datetime
@@ -745,156 +746,91 @@ async def get_earnings_press_releases(ticker: str = Query(..., description="Comp
                 except (ValueError, AttributeError):
                     pass
             
-            # Get title and URL
-            title = release.get('title', 'Untitled')
-            url = release.get('url', '')
+            # Get article details
+            title = article.get('title', 'Untitled')
+            url = article.get('url', '')
+            source = article.get('source', 'Unknown Source')
+            summary = article.get('summary', '')
             
-            # Format text with proper line breaks and paragraphs
-            text = release.get('text', '')
-            if text:
+            # Format summary with proper line breaks and paragraphs
+            if summary:
                 # Replace multiple newlines with double newlines for markdown paragraphs
-                text = text.replace('\n\n', '\n').replace('\n', '\n\n')
+                summary = summary.replace('\n\n', '\n').replace('\n', '\n\n')
                 # Truncate if too long
-                if len(text) > 1000:
-                    text = text[:997] + "..."
+                if len(summary) > 1000:
+                    summary = summary[:997] + "..."
             
-            # Build the markdown for this release
+            # Build the markdown for this article
             markdown_content += f"## {title}\n\n"
+            markdown_content += f"**Source:** {source}\n\n"
             markdown_content += f"**Published:** {publish_date}\n\n"
             if url:
-                markdown_content += f"[Read Full Release]({url})\n\n"
-            markdown_content += f"{text}\n\n"
-            markdown_content += "---\n\n"  # Add separator between releases
+                markdown_content += f"[Read Full Article]({url})\n\n"
+            if summary:
+                markdown_content += f"{summary}\n\n"
+            markdown_content += "---\n\n"  # Add separator between articles
         
         return markdown_content
 
     print(f"Request error {response.status_code}: {response.text}")
-    return f"# Error\n\nFailed to fetch earnings press releases: {response.text}"
+    return f"# Error\n\nFailed to fetch news articles: {response.text}"
 
 @register_widget({
-    "name": "Stock Prices Historical",
-    "description": "Get historical price data for stocks with customizable intervals and date ranges.",
+    "name": "Stock News",
+    "description": "Get recent news articles for stocks, including headlines, publish dates, and article summaries.",
     "category": "Equity",
-    "subcategory": "Prices",
-    "type": "table",
-    "widgetId": "stock_prices_historical",
-    "endpoint": "stock_prices_historical",
+    "subcategory": "News",
+    "type": "markdown",
+    "widgetId": "stock_news",
+    "endpoint": "stock_news",
     "gridData": {
         "w": 40,
         "h": 8
     },
-    "data": {
-        "table": {
-            "showAll": True,
-            "columnsDefs": [
-                {"field": "time", "headerName": "Time", "width": 180, "cellDataType": "text", "pinned": "left"},
-                {"field": "open", "headerName": "Open", "width": 120, "cellDataType": "number"},
-                {"field": "high", "headerName": "High", "width": 120, "cellDataType": "number"},
-                {"field": "low", "headerName": "Low", "width": 120, "cellDataType": "number"},
-                {"field": "close", "headerName": "Close", "width": 120, "cellDataType": "number"},
-                {"field": "volume", "headerName": "Volume", "width": 120, "cellDataType": "number"},
-                {"field": "vwap", "headerName": "VWAP", "width": 120, "cellDataType": "number"},
-                {"field": "transactions", "headerName": "Transactions", "width": 120, "cellDataType": "number"}
-            ]
-        }
-    },
     "params": [
         {
-            "type": "ticker",
+            "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
             "value": "AAPL",
-            "description": "Stock ticker to get historical prices for"
-        },
-        {
-            "type": "text",
-            "value": "day",
-            "paramName": "interval",
-            "label": "Interval",
-            "description": "Time interval for prices",
-            "options": [
-                {"value": "minute", "label": "Minute"},
-                {"value": "day", "label": "Day"},
-                {"value": "week", "label": "Week"},
-                {"value": "month", "label": "Month"},
-                {"value": "year", "label": "Year"}
-            ]
+            "description": "Stock ticker to get news for (Free tier: AAPL, MSFT, TSLA)",
+            "multiSelect": False,
+            "optionsEndpoint": "/stock_tickers"
         },
         {
             "type": "number",
-            "paramName": "interval_multiplier",
-            "label": "Interval Multiplier",
-            "value": "1",
-            "description": "Multiplier for the interval (e.g., 5 for every 5 minutes)"
-        },
-        {
-            "type": "date",
-            "paramName": "start_date",
-            "label": "Start Date",
-            "value": "2024-01-01",
-            "description": "Start date for historical data"
-        },
-        {
-            "type": "date",
-            "paramName": "end_date",
-            "label": "End Date",
-            "value": "2024-03-20",
-            "description": "End date for historical data"
+            "paramName": "limit",
+            "label": "Number of Articles",
+            "value": "10",
+            "description": "Maximum number of news articles to display"
         }
     ]
 })
-@app.get("/stock_prices_historical")
-def get_stock_prices_historical(
-    ticker: str,
-    interval: str,
-    interval_multiplier: int,
-    start_date: str,
-    end_date: str
-):
-    """Get historical stock prices"""
+
+# Add endpoint to get available tickers for news
+@app.get("/stock_news/tickers")
+async def get_news_tickers():
+    """Get available tickers for stock news"""
     headers = {
         "X-API-KEY": FINANCIAL_DATASETS_API_KEY
     }
     
-    url = (
-        f'https://api.financialdatasets.ai/prices'
-        f'?ticker={ticker}'
-        f'&interval={interval}'
-        f'&interval_multiplier={interval_multiplier}'
-        f'&start_date={start_date}'
-        f'&end_date={end_date}'
-    )
-
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        data = response.json()
-        prices = data.get('prices', [])
-        
-        # Process and clean up the data
-        for price in prices:
-            # Format timestamp
-            if 'timestamp' in price:
-                timestamp = price['timestamp']
-                if isinstance(timestamp, str):
-                    from datetime import datetime
-                    try:
-                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                        price['time'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-                    except ValueError:
-                        pass
-            
-            # Remove unwanted fields
-            price.pop('timestamp', None)
-            price.pop('time_milliseconds', None)
-            price.pop('ticker', None)
-        
-        return prices
-
-    print(f"Request error {response.status_code}: {response.text}")
-    return JSONResponse(
-        content={"error": response.text}, status_code=response.status_code
-    )
+    url = 'https://api.financialdatasets.ai/news/tickers/'
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            tickers = data.get('tickers', [])
+            # Sort tickers alphabetically
+            tickers.sort()
+            # Create options list with both label and value
+            return [{"label": ticker, "value": ticker} for ticker in tickers]
+    except Exception as e:
+        print(f"Error fetching news tickers: {e}")
+    
+    # Return a default list if fetch fails
+    return [{"label": "AAPL", "value": "AAPL"}]
 
 @register_widget({
     "name": "Stock Prices Snapshot",
@@ -939,19 +875,13 @@ def get_stock_prices_historical(
     },
     "params": [
         {
-            "type": "text",
+            "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
             "value": "AAPL",
-            "description": "Select stocks to track",
+            "description": "Select stocks to track (Free tier: AAPL, MSFT, TSLA)",
             "multiSelect": True,
-            "options": [
-                {"label": "Apple Inc. (AAPL)", "value": "AAPL"},
-                {"label": "Microsoft Corp. (MSFT)", "value": "MSFT"},
-                {"label": "Amazon.com Inc. (AMZN)", "value": "AMZN"},
-                {"label": "Alphabet Inc. (GOOGL)", "value": "GOOGL"},
-                {"label": "Meta Platforms Inc. (META)", "value": "META"}
-            ]
+            "optionsEndpoint": "/stock_tickers"
         }
     ]
 })
@@ -1114,3 +1044,129 @@ async def websocket_handler(websocket: WebSocket, connection_id: str, data_type:
     
     for task in pending:
         task.cancel()
+
+@register_widget({
+    "name": "Stock Prices Historical",
+    "description": "Get historical price data for stocks with customizable intervals and date ranges.",
+    "category": "Equity",
+    "subcategory": "Prices",
+    "type": "table",
+    "widgetId": "stock_prices_historical",
+    "endpoint": "stock_prices_historical",
+    "gridData": {
+        "w": 40,
+        "h": 8
+    },
+    "data": {
+        "table": {
+            "showAll": True,
+            "columnsDefs": [
+                {"field": "time", "headerName": "Time", "width": 180, "cellDataType": "text", "pinned": "left"},
+                {"field": "open", "headerName": "Open", "width": 120, "cellDataType": "number"},
+                {"field": "high", "headerName": "High", "width": 120, "cellDataType": "number"},
+                {"field": "low", "headerName": "Low", "width": 120, "cellDataType": "number"},
+                {"field": "close", "headerName": "Close", "width": 120, "cellDataType": "number"},
+                {"field": "volume", "headerName": "Volume", "width": 120, "cellDataType": "number"},
+                {"field": "vwap", "headerName": "VWAP", "width": 120, "cellDataType": "number"},
+                {"field": "transactions", "headerName": "Transactions", "width": 120, "cellDataType": "number"}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "endpoint",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Stock ticker to get historical prices for (Free tier: AAPL, MSFT, TSLA)",
+            "optionsEndpoint": "/stock_tickers"
+        },
+        {
+            "type": "text",
+            "value": "day",
+            "paramName": "interval",
+            "label": "Interval",
+            "description": "Time interval for prices",
+            "options": [
+                {"value": "minute", "label": "Minute"},
+                {"value": "day", "label": "Day"},
+                {"value": "week", "label": "Week"},
+                {"value": "month", "label": "Month"},
+                {"value": "year", "label": "Year"}
+            ]
+        },
+        {
+            "type": "number",
+            "paramName": "interval_multiplier",
+            "label": "Interval Multiplier",
+            "value": "1",
+            "description": "Multiplier for the interval (e.g., 5 for every 5 minutes)"
+        },
+        {
+            "type": "date",
+            "paramName": "start_date",
+            "label": "Start Date",
+            "value": "2024-01-01",
+            "description": "Start date for historical data"
+        },
+        {
+            "type": "date",
+            "paramName": "end_date",
+            "label": "End Date",
+            "value": "2024-03-20",
+            "description": "End date for historical data"
+        }
+    ]
+})
+@app.get("/stock_prices_historical")
+def get_stock_prices_historical(
+    ticker: str,
+    interval: str,
+    interval_multiplier: int,
+    start_date: str,
+    end_date: str
+):
+    """Get historical stock prices"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/prices'
+        f'?ticker={ticker}'
+        f'&interval={interval}'
+        f'&interval_multiplier={interval_multiplier}'
+        f'&start_date={start_date}'
+        f'&end_date={end_date}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        prices = data.get('prices', [])
+        
+        # Process and clean up the data
+        for price in prices:
+            # Format timestamp
+            if 'timestamp' in price:
+                timestamp = price['timestamp']
+                if isinstance(timestamp, str):
+                    from datetime import datetime
+                    try:
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        price['time'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        pass
+            
+            # Remove unwanted fields
+            price.pop('timestamp', None)
+            price.pop('time_milliseconds', None)
+            price.pop('ticker', None)
+        
+        return prices
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
