@@ -79,6 +79,22 @@ def read_root():
     return {"Info": "Financial Datasets to integrate with OpenBB"}
 
 
+# Apps configuration file for the OpenBB Workspace
+# it contains the information and configuration about all the
+# apps that will be displayed in the OpenBB Workspace
+@app.get("/apps.json")
+def get_apps():
+    """Apps configuration file for the OpenBB Workspace
+    
+    Returns:
+        JSONResponse: The contents of apps.json file
+    """
+    # Read and return the apps configuration file
+    return JSONResponse(
+        content=json.load((Path(__file__).parent.resolve() / "apps.json").open())
+    )
+
+
 # Endpoint that returns the registered widgets configuration
 # The WIDGETS dictionary is maintained by the registry.py helper
 # which automatically registers widgets when using the @register_widget decorator
@@ -104,13 +120,13 @@ def get_widgets():
     "widgetId": "income",
     "endpoint": "income",
     "gridData": {
-    "w": 80,
-    "h": 12
+        "w": 80,
+        "h": 12
     },
     "data": {
-    "table": {
-        "showAll": True
-    }
+        "table": {
+            "showAll": True
+        }
     },
     "params": [
         {
@@ -128,18 +144,9 @@ def get_widgets():
             "label": "Period",
             "description": "Period to get statements from",
             "options": [
-                {
-                    "value": "annual",
-                    "label": "Annual"
-                },
-                {
-                    "value": "quarterly",
-                    "label": "Quarterly"
-                },
-                {
-                    "value": "ttm",
-                    "label": "TTM"
-                }
+                {"value": "annual", "label": "Annual"},
+                {"value": "quarterly", "label": "Quarterly"},
+                {"value": "ttm", "label": "TTM"}
             ]
         },
         {
@@ -169,13 +176,7 @@ def get_income(ticker: str, period: str, limit: int):
     if response.status_code == 200:
         data = response.json()
         statements = data.get('income_statements', [])
-        for stmt in statements:
-            # Remove unnecessary fields
-            stmt.pop('ticker', None)
-            stmt.pop('period', None)
-            stmt.pop('fiscal_period', None)
-            stmt.pop('currency', None)
-        return statements
+        return transpose_financial_data(statements)
 
     print(f"Request error {response.status_code}: {response.text}")
     return JSONResponse(
@@ -191,13 +192,13 @@ def get_income(ticker: str, period: str, limit: int):
     "widgetId": "balance",
     "endpoint": "balance",
     "gridData": {
-    "w": 80,
-    "h": 12
+        "w": 80,
+        "h": 12
     },
     "data": {
-    "table": {
-        "showAll": True
-    }
+        "table": {
+            "showAll": True
+        }
     },
     "params": [
         {
@@ -215,18 +216,9 @@ def get_income(ticker: str, period: str, limit: int):
             "label": "Period",
             "description": "Period to get statements from",
             "options": [
-                {
-                    "value": "annual",
-                    "label": "Annual"
-                },
-                {
-                    "value": "quarterly",
-                    "label": "Quarterly"
-                },
-                {
-                    "value": "ttm",
-                    "label": "TTM"
-                }
+                {"value": "annual", "label": "Annual"},
+                {"value": "quarterly", "label": "Quarterly"},
+                {"value": "ttm", "label": "TTM"}
             ]
         },
         {
@@ -255,13 +247,222 @@ def get_balance(ticker: str, period: str, limit: int):
 
     if response.status_code == 200:
         balance_sheets = response.json().get('balance_sheets', [])
-        for sheet in balance_sheets:
-            # Remove unnecessary fields
-            sheet.pop('ticker', None)
-            sheet.pop('period', None)
-            sheet.pop('fiscal_period', None)
-            sheet.pop('currency', None)
-        return balance_sheets
+        return transpose_financial_data(balance_sheets)
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
+
+@register_widget({
+    "name": "Financial Metrics",
+    "description": "Get key financial metrics and ratios including profitability, efficiency, liquidity, and leverage ratios.",
+    "category": "Equity",
+    "subcategory": "Financials",
+    "widgetType": "individual",
+    "widgetId": "financial_metrics",
+    "endpoint": "financial_metrics",
+    "gridData": {
+        "w": 80,
+        "h": 12
+    },
+    "data": {
+        "table": {
+            "showAll": True
+        }
+    },
+    "params": [
+        {
+            "type": "endpoint",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Ticker to get financial metrics for (Free tier: AAPL, MSFT, TSLA)",
+            "optionsEndpoint": "/stock_tickers"
+        },
+        {
+            "type": "text",
+            "value": "annual",
+            "paramName": "period",
+            "label": "Period",
+            "description": "Period to get metrics from",
+            "options": [
+                {"value": "annual", "label": "Annual"},
+                {"value": "quarterly", "label": "Quarterly"},
+                {"value": "ttm", "label": "TTM"}
+            ]
+        },
+        {
+            "type": "number",
+            "paramName": "limit",
+            "label": "Number of Periods",
+            "value": "10",
+            "description": "Number of periods to display"
+        }
+    ]
+})
+
+def transpose_financial_data(statements):
+    """Helper function to transpose financial data using report_period as columns"""
+    if not statements:
+        return []
+    
+    # Collect all unique report_periods and format them
+    periods = []
+    for stmt in statements:
+        period = stmt.get('report_period', '')
+        if period:
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(period.replace('Z', '+00:00'))
+                period = dt.strftime('%Y-%m-%d')
+            except (ValueError, AttributeError):
+                pass
+        if period and period not in periods:
+            periods.append(period)
+    
+    # Sort periods in reverse chronological order
+    periods.sort(reverse=True)
+    
+    # Get all unique keys (metrics) from all statements
+    all_keys = set()
+    for stmt in statements:
+        keys = [k for k in stmt.keys() if k not in ['ticker', 'period', 'fiscal_period', 'currency', 'report_period']]
+        all_keys.update(keys)
+    
+    # Sort keys to maintain consistent order
+    sorted_keys = sorted(all_keys)
+    
+    # Create a mapping of report_period to statement for quick lookup
+    period_to_stmt = {}
+    for stmt in statements:
+        period = stmt.get('report_period', '')
+        if period:
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(period.replace('Z', '+00:00'))
+                period = dt.strftime('%Y-%m-%d')
+            except (ValueError, AttributeError):
+                pass
+        if period:
+            period_to_stmt[period] = stmt
+    
+    # Create transposed data
+    transposed = []
+    for key in sorted_keys:
+        row = {'metric': key.replace('_', ' ').title()}
+        # Add values for each period
+        for period in periods:
+            stmt = period_to_stmt.get(period, {})
+            value = stmt.get(key)
+            # Format numeric values to 2 decimal places if they exist
+            if value is not None:
+                try:
+                    value = round(float(value), 2)
+                except (ValueError, TypeError):
+                    pass
+            row[period] = value
+        transposed.append(row)
+    
+    return transposed
+
+@app.get("/financial_metrics")
+def get_financial_metrics(ticker: str, period: str, limit: int):
+    """Get financial metrics and ratios"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/financial-metrics'
+        f'?ticker={ticker}'
+        f'&period={period}'
+        f'&limit={limit}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        metrics = data.get('financial_metrics', [])
+        return transpose_financial_data(metrics)
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
+
+@register_widget({
+    "name": "Cash Flow Statement",
+    "description": "Financial statements that provide information about a company's cash inflows and outflows over a specific period.",
+    "category": "Equity",
+    "subcategory": "Financials",
+    "widgetType": "individual",
+    "widgetId": "cash_flow",
+    "endpoint": "cash_flow",
+    "gridData": {
+        "w": 80,
+        "h": 12
+    },
+    "data": {
+        "table": {
+            "showAll": True
+        }
+    },
+    "params": [
+        {
+            "type": "endpoint",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Ticker to get cash flow statement for (Free tier: AAPL, MSFT, TSLA)",
+            "optionsEndpoint": "/stock_tickers"
+        },
+        {
+            "type": "text",
+            "value": "annual",
+            "paramName": "period",
+            "label": "Period",
+            "description": "Period to get statements from",
+            "options": [
+                {"value": "annual", "label": "Annual"},
+                {"value": "quarterly", "label": "Quarterly"},
+                {"value": "ttm", "label": "TTM"}
+            ]
+        },
+        {
+            "type": "number",
+            "paramName": "limit",
+            "label": "Number of Statements",
+            "value": "10",
+            "description": "Number of statements to display"
+        }
+    ]
+})
+
+@app.get("/cash_flow")
+def get_cash_flow(ticker: str, period: str, limit: int):
+    """Get cash flow statement"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    url = (
+        f'https://api.financialdatasets.ai/financials/cash-flow-statements'
+        f'?ticker={ticker}'
+        f'&period={period}'
+        f'&limit={limit}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        print(f"API Response keys: {data.keys()}")
+        statements = data.get('cash_flow_statements', [])
+        print(f"Number of statements from API: {len(statements)}")
+        if statements:
+            print("First statement from API:", statements[0])
+        return transpose_financial_data(statements)
 
     print(f"Request error {response.status_code}: {response.text}")
     return JSONResponse(
@@ -1559,18 +1760,9 @@ async def get_institutional_ownership_by_ticker(
             "label": "Period",
             "description": "Period to get statements from",
             "options": [
-                {
-                    "value": "annual",
-                    "label": "Annual"
-                },
-                {
-                    "value": "quarterly",
-                    "label": "Quarterly"
-                },
-                {
-                    "value": "ttm",
-                    "label": "TTM"
-                }
+                {"value": "annual", "label": "Annual"},
+                {"value": "quarterly", "label": "Quarterly"},
+                {"value": "ttm", "label": "TTM"}
             ]
         },
         {
@@ -1600,140 +1792,12 @@ def get_cash_flow(ticker: str, period: str, limit: int):
 
     if response.status_code == 200:
         data = response.json()
+        print(f"API Response keys: {data.keys()}")
         statements = data.get('cash_flow_statements', [])
-        for stmt in statements:
-            # Remove unnecessary fields
-            stmt.pop('ticker', None)
-            stmt.pop('period', None)
-            stmt.pop('fiscal_period', None)
-            stmt.pop('currency', None)
-        return statements
-
-    print(f"Request error {response.status_code}: {response.text}")
-    return JSONResponse(
-        content={"error": response.text}, status_code=response.status_code
-    )
-
-@register_widget({
-    "name": "Financial Metrics",
-    "description": "Get key financial metrics and ratios including profitability, efficiency, liquidity, and leverage ratios.",
-    "category": "Equity",
-    "subcategory": "Financials",
-    "widgetType": "individual",
-    "widgetId": "financial_metrics",
-    "endpoint": "financial_metrics",
-    "gridData": {
-        "w": 80,
-        "h": 12
-    },
-    "data": {
-        "table": {
-            "showAll": True,
-            "columnsDefs": [
-                {"field": "reported_period", "headerName": "Reported Period", "width": 120, "cellDataType": "text", "pinned": "left"},
-                {"field": "revenue_growth", "headerName": "Revenue Growth", "width": 150, "cellDataType": "number"},
-                {"field": "gross_margin", "headerName": "Gross Margin", "width": 150, "cellDataType": "number"},
-                {"field": "operating_margin", "headerName": "Operating Margin", "width": 150, "cellDataType": "number"},
-                {"field": "net_margin", "headerName": "Net Margin", "width": 150, "cellDataType": "number"},
-                {"field": "roe", "headerName": "ROE", "width": 120, "cellDataType": "number"},
-                {"field": "roa", "headerName": "ROA", "width": 120, "cellDataType": "number"},
-                {"field": "current_ratio", "headerName": "Current Ratio", "width": 150, "cellDataType": "number"},
-                {"field": "debt_to_equity", "headerName": "Debt/Equity", "width": 150, "cellDataType": "number"},
-                {"field": "pe_ratio", "headerName": "P/E Ratio", "width": 120, "cellDataType": "number"},
-                {"field": "pb_ratio", "headerName": "P/B Ratio", "width": 120, "cellDataType": "number"}
-            ]
-        }
-    },
-    "params": [
-        {
-            "type": "endpoint",
-            "paramName": "ticker",
-            "label": "Symbol",
-            "value": "AAPL",
-            "description": "Ticker to get financial metrics for (Free tier: AAPL, MSFT, TSLA)",
-            "optionsEndpoint": "/stock_tickers"
-        },
-        {
-            "type": "text",
-            "value": "annual",
-            "paramName": "period",
-            "label": "Period",
-            "description": "Period to get metrics from",
-            "options": [
-                {
-                    "value": "annual",
-                    "label": "Annual"
-                },
-                {
-                    "value": "quarterly",
-                    "label": "Quarterly"
-                },
-                {
-                    "value": "ttm",
-                    "label": "TTM"
-                }
-            ]
-        },
-        {
-            "type": "number",
-            "paramName": "limit",
-            "label": "Number of Periods",
-            "value": "10",
-            "description": "Number of periods to display"
-        }
-    ]
-})
-
-@app.get("/financial_metrics")
-def get_financial_metrics(ticker: str, period: str, limit: int):
-    """Get financial metrics and ratios"""
-    headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
-    }
-    
-    url = (
-        f'https://api.financialdatasets.ai/financial-metrics'
-        f'?ticker={ticker}'
-        f'&period={period}'
-        f'&limit={limit}'
-    )
-
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        data = response.json()
-        metrics = data.get('financial_metrics', [])
-        
-        # Process each period's metrics
-        for metric in metrics:
-            # Remove unnecessary fields
-            metric.pop('ticker', None)
-            metric.pop('period', None)
-            metric.pop('fiscal_period', None)
-            metric.pop('currency', None)
-            
-            # Format reported period date
-            if 'reported_period' in metric:
-                try:
-                    from datetime import datetime
-                    dt = datetime.fromisoformat(metric['reported_period'].replace('Z', '+00:00'))
-                    metric['reported_period'] = dt.strftime('%Y-%m-%d')
-                except (ValueError, AttributeError):
-                    pass
-            
-            # Format numeric values to 2 decimal places
-            numeric_fields = [
-                'revenue_growth', 'gross_margin', 'operating_margin', 'net_margin',
-                'roe', 'roa', 'current_ratio', 'debt_to_equity', 'pe_ratio', 'pb_ratio'
-            ]
-            for field in numeric_fields:
-                if field in metric and metric[field] is not None:
-                    try:
-                        metric[field] = round(float(metric[field]), 2)
-                    except (ValueError, TypeError):
-                        pass
-        
-        return metrics
+        print(f"Number of statements from API: {len(statements)}")
+        if statements:
+            print("First statement from API:", statements[0])
+        return transpose_financial_data(statements)
 
     print(f"Request error {response.status_code}: {response.text}")
     return JSONResponse(
