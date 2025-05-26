@@ -261,3 +261,71 @@ def get_balance(ticker: str, period: str, limit: int):
     return JSONResponse(
         content={"error": response.text}, status_code=response.status_code
     )
+
+@register_widget({
+    "name": "Company Facts",
+    "description": "Get key company information including name, CIK, market cap, total employees, website URL, and more.",
+    "category": "Equity",
+    "subcategory": "Company Info",
+    "widgetType": "individual",
+    "widgetId": "company_facts",
+    "endpoint": "company_facts",
+    "gridData": {
+        "w": 10,
+        "h": 12
+    },
+    "data": {
+        "table": {
+            "showAll": True,
+            "columns": [
+                {"field": "fact", "headerName": "Fact", "width": 200},
+                {"field": "value", "headerName": "Value", "width": 200}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "ticker",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Ticker to get company facts for"
+        }
+    ]
+})
+@app.get("/company_facts")
+def get_company_facts(ticker: str):
+    """Get company facts for a ticker"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/company/facts'
+        f'?ticker={ticker}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        company_facts = data.get('company_facts', {})
+        
+        # Transform the data into a list of fact-value pairs
+        transformed_data = []
+        for key, value in company_facts.items():
+            # Convert key to title case and replace underscores with spaces
+            fact = key.replace('_', ' ').title()
+            transformed_data.append({
+                "fact": fact,
+                "value": value
+            })
+        
+        # Sort by fact name for consistent display
+        transformed_data.sort(key=lambda x: x["fact"])
+        return transformed_data
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
