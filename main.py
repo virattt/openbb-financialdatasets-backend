@@ -181,7 +181,7 @@ def get_income(ticker: str, period: str, limit: int):
     "description": "A financial statement that summarizes a company's assets, liabilities and shareholders' equity at a specific point in time.",
     "category": "Equity",
     "subcategory": "Financials",
-    "widgetType": "individual",
+    "type": "table",
     "widgetId": "balance",
     "endpoint": "balance",
     "gridData": {
@@ -267,7 +267,7 @@ def get_balance(ticker: str, period: str, limit: int):
     "description": "Get key company information including name, CIK, market cap, total employees, website URL, and more.",
     "category": "Equity",
     "subcategory": "Company Info",
-    "widgetType": "individual",
+    "type": "table",
     "widgetId": "company_facts",
     "endpoint": "company_facts",
     "gridData": {
@@ -324,6 +324,129 @@ def get_company_facts(ticker: str):
         # Sort by fact name for consistent display
         transformed_data.sort(key=lambda x: x["fact"])
         return transformed_data
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
+
+@register_widget({
+    "name": "Crypto Prices",
+    "description": "Get historical price data for cryptocurrencies with customizable intervals and date ranges.",
+    "category": "Crypto",
+    "subcategory": "Prices",
+    "type": "table",
+    "widgetId": "crypto_prices",
+    "endpoint": "crypto_prices",
+    "gridData": {
+        "w": 10,
+        "h": 12
+    },
+    "data": {
+        "table": {
+            "showAll": True,
+            "columnsDefs": [
+                {"field": "time", "headerName": "Time", "width": 180, "cellDataType": "text"},
+                {"field": "open", "headerName": "Open", "width": 120, "cellDataType": "number"},
+                {"field": "high", "headerName": "High", "width": 120, "cellDataType": "number"},
+                {"field": "low", "headerName": "Low", "width": 120, "cellDataType": "number"},
+                {"field": "close", "headerName": "Close", "width": 120, "cellDataType": "number"},
+                {"field": "volume", "headerName": "Volume", "width": 120, "cellDataType": "number"}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "text",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "BTC-USD",
+            "description": "Crypto ticker (e.g., BTC-USD)"
+        },
+        {
+            "type": "text",
+            "value": "day",
+            "paramName": "interval",
+            "label": "Interval",
+            "description": "Time interval for prices",
+            "options": [
+                {"value": "minute", "label": "Minute"},
+                {"value": "day", "label": "Day"},
+                {"value": "week", "label": "Week"},
+                {"value": "month", "label": "Month"},
+                {"value": "year", "label": "Year"}
+            ]
+        },
+        {
+            "type": "number",
+            "paramName": "interval_multiplier",
+            "label": "Interval Multiplier",
+            "value": "1",
+            "description": "Multiplier for the interval (e.g., 5 for every 5 minutes)"
+        },
+        {
+            "type": "date",
+            "paramName": "start_date",
+            "label": "Start Date",
+            "value": "2024-01-01",
+            "description": "Start date for historical data"
+        },
+        {
+            "type": "date",
+            "paramName": "end_date",
+            "label": "End Date",
+            "value": "2024-03-20",
+            "description": "End date for historical data"
+        }
+    ]
+})
+@app.get("/crypto_prices")
+def get_crypto_prices(
+    ticker: str,
+    interval: str,
+    interval_multiplier: int,
+    start_date: str,
+    end_date: str
+):
+    """Get historical crypto prices"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/crypto/prices'
+        f'?ticker={ticker}'
+        f'&interval={interval}'
+        f'&interval_multiplier={interval_multiplier}'
+        f'&start_date={start_date}'
+        f'&end_date={end_date}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        prices = data.get('prices', [])
+        
+        # Format timestamps to be more readable
+        for price in prices:
+            if 'timestamp' in price:
+                # Convert timestamp to ISO format date string
+                timestamp = price['timestamp']
+                if isinstance(timestamp, str):
+                    # If it's already a string, try to parse and reformat
+                    from datetime import datetime
+                    try:
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        price['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        pass  # Keep original if parsing fails
+        
+        crypto_prices = prices["prices"]
+        for col in crypto_prices:
+            col.pop('ticker', None)
+
+        return crypto_prices
 
     print(f"Request error {response.status_code}: {response.text}")
     return JSONResponse(
