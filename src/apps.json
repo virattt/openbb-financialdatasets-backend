@@ -4,7 +4,7 @@
         "img": "https://financialdatasets.ai/og-image.png",
         "img_dark": "",
         "img_light": "",
-        "description": "Developer-friendly stock market API. Buily by Virat Singh.",
+        "description": "Developer-friendly stock market API.",
         "allowCustomization": true,
         "tabs": {
           "overview": {
@@ -801,19 +801,6 @@
               }
             ]
           },
-          "press-releases": {
-            "id": "press-releases",
-            "name": "Press Releases",
-            "layout": [
-              {
-                "i": "earnings_press_releases",
-                "x": 0,
-                "y": 2,
-                "w": 40,
-                "h": 20
-              }
-            ]
-          },
           "crypto": {
             "id": "crypto",
             "name": "Crypto",
@@ -844,6 +831,19 @@
                     }
                   }
                 }
+              }
+            ]
+          },
+          "press-releases": {
+            "id": "press-releases",
+            "name": "Press Releases",
+            "layout": [
+              {
+                "i": "earnings_press_releases",
+                "x": 0,
+                "y": 2,
+                "w": 40,
+                "h": 20
               }
             ]
           }
