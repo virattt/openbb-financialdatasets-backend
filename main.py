@@ -500,14 +500,14 @@ def get_crypto_prices(
     },
     "params": [
         {
-            "type": "advancedDropdown",
+            "type": "text",
             "paramName": "ticker",
             "label": "Symbol",
             "value": "BTC-USD",
             "description": "Select cryptocurrencies to track",
             "multiSelect": True,
             "options": [
-                {"label": "Bitcoin (BTC-USD)", "value": "BTC-USD"},
+                {"label": "Bitcoin (BTC-USD)", "value": "BTC-USD"}
             ]
         }
     ]
@@ -645,3 +645,131 @@ async def websocket_handler(websocket: WebSocket, connection_id: str):
     
     for task in pending:
         task.cancel()
+
+# Add this function to fetch available tickers
+async def get_available_tickers():
+    """Fetch available tickers for earnings press releases"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = 'https://api.financialdatasets.ai/earnings/press-releases/tickers/'
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            tickers = data.get('tickers', [])
+            # Sort tickers alphabetically
+            tickers.sort()
+            # Create options list with both label and value
+            return [{"label": ticker, "value": ticker} for ticker in tickers]
+    except Exception as e:
+        print(f"Error fetching tickers: {e}")
+    
+    # Return a default list if fetch fails
+    return [{"label": "AAPL", "value": "AAPL"}]
+
+@register_widget({
+    "name": "Earnings Press Releases",
+    "description": "Get earnings-related press releases for companies, including URL, publish date, and full text.",
+    "category": "Equity",
+    "subcategory": "Earnings",
+    "type": "markdown",
+    "widgetId": "earnings_press_releases",
+    "endpoint": "earnings_press_releases",
+    "gridData": {
+        "w": 40,
+        "h": 8
+    },
+    "params": [
+        {
+            "type": "text",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Company ticker to get earnings press releases for",
+            "multiSelect": False,
+            "options": []  # Will be populated dynamically
+        }
+    ]
+})
+
+# Add back the endpoint to get available tickers
+@app.get("/earnings_press_releases/tickers")
+async def get_tickers():
+    """Get available tickers for earnings press releases"""
+    return await get_available_tickers()
+
+# Add back the startup event handler
+@app.on_event("startup")
+async def startup_event():
+    """Initialize widget options on startup"""
+    tickers = await get_available_tickers()
+    # Update the widget configuration with available tickers
+    for widget in WIDGETS.values():
+        if widget.get("widgetId") == "earnings_press_releases":
+            for param in widget.get("params", []):
+                if param.get("paramName") == "ticker":
+                    param["options"] = tickers
+
+@app.get("/earnings_press_releases")
+async def get_earnings_press_releases(ticker: str = Query(..., description="Company ticker")):
+    """Get earnings press releases for a company"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/earnings/press-releases'
+        f'?ticker={ticker}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        press_releases = data.get('press_releases', [])
+        
+        if not press_releases:
+            return "# No Earnings Press Releases Found\n\nNo earnings press releases were found for this company."
+        
+        # Format the press releases into markdown
+        markdown_content = f"# Earnings Press Releases for {ticker}\n\n"
+        
+        for release in press_releases:
+            # Format date
+            publish_date = release.get('publish_date', '')
+            if publish_date:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(publish_date.replace('Z', '+00:00'))
+                    publish_date = dt.strftime('%B %d, %Y %H:%M:%S')
+                except (ValueError, AttributeError):
+                    pass
+            
+            # Get title and URL
+            title = release.get('title', 'Untitled')
+            url = release.get('url', '')
+            
+            # Format text with proper line breaks and paragraphs
+            text = release.get('text', '')
+            if text:
+                # Replace multiple newlines with double newlines for markdown paragraphs
+                text = text.replace('\n\n', '\n').replace('\n', '\n\n')
+                # Truncate if too long
+                if len(text) > 1000:
+                    text = text[:997] + "..."
+            
+            # Build the markdown for this release
+            markdown_content += f"## {title}\n\n"
+            markdown_content += f"**Published:** {publish_date}\n\n"
+            if url:
+                markdown_content += f"[Read Full Release]({url})\n\n"
+            markdown_content += f"{text}\n\n"
+            markdown_content += "---\n\n"  # Add separator between releases
+        
+        return markdown_content
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return f"# Error\n\nFailed to fetch earnings press releases: {response.text}"
