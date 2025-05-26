@@ -2,16 +2,20 @@ import json
 from pathlib import Path
 import os
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from functools import wraps
 import asyncio
+from fastapi.websockets import WebSocketState
 
 # Initialize empty dictionary for widgets
 WIDGETS = {}
 
+# Store active WebSocket connections and their subscribed tickers
+active_connections: dict[str, WebSocket] = {}
+subscribed_tickers: dict[str, set[str]] = {}
 
 def register_widget(widget_config):
     """
@@ -455,71 +459,189 @@ def get_crypto_prices(
 
 @register_widget({
     "name": "Crypto Snapshot",
-    "description": "Get real-time price snapshot for cryptocurrencies.",
+    "description": "Get real-time price snapshot for cryptocurrencies with live updates.",
     "category": "Crypto",
     "subcategory": "Prices",
-    "type": "table",
+    "type": "live_grid",
     "widgetId": "crypto_snapshot",
     "endpoint": "crypto_snapshot",
+    "wsEndpoint": "crypto_ws",
     "gridData": {
-        "w": 10,
-        "h": 12
+        "w": 40,
+        "h": 8
     },
     "data": {
+        "wsRowIdColumn": "ticker",
         "table": {
             "showAll": True,
             "columnsDefs": [
                 {"field": "ticker", "headerName": "Symbol", "width": 120, "cellDataType": "text"},
-                {"field": "price", "headerName": "Price", "width": 120, "cellDataType": "number"},
+                {
+                    "field": "price", 
+                    "headerName": "Price", 
+                    "width": 120, 
+                    "cellDataType": "number",
+                    "renderFn": "showCellChange",
+                    "renderFnParams": {
+                        "colorValueKey": "change_24h"
+                    }
+                },
                 {"field": "volume_24h", "headerName": "24h Volume", "width": 150, "cellDataType": "number"},
-                {"field": "change_24h", "headerName": "24h Change", "width": 120, "cellDataType": "number"},
+                {
+                    "field": "change_24h", 
+                    "headerName": "24h Change", 
+                    "width": 120, 
+                    "cellDataType": "number",
+                    "renderFn": "greenRed"
+                },
                 {"field": "timestamp", "headerName": "Last Updated", "width": 180, "cellDataType": "text"}
             ]
         }
     },
     "params": [
         {
-            "type": "text",
+            "type": "advancedDropdown",
             "paramName": "ticker",
             "label": "Symbol",
             "value": "BTC-USD",
-            "description": "Crypto ticker (e.g., BTC-USD)"
+            "description": "Select cryptocurrencies to track",
+            "multiSelect": True,
+            "options": [
+                {"label": "Bitcoin (BTC-USD)", "value": "BTC-USD"},
+            ]
         }
     ]
 })
 @app.get("/crypto_snapshot")
-def get_crypto_snapshot(ticker: str):
-    """Get real-time crypto price snapshot"""
+async def get_crypto_snapshot(ticker: str = Query(..., description="Comma-separated list of tickers")):
+    """Initial data endpoint for crypto snapshot"""
     headers = {
         "X-API-KEY": FINANCIAL_DATASETS_API_KEY
     }
     
-    url = (
-        f'https://api.financialdatasets.ai/crypto/prices/snapshot'
-        f'?ticker={ticker}'
-    )
-
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        data = response.json()
-        snapshot = data.get('snapshot', {})
+    # Handle multiple tickers - ensure proper splitting and cleaning
+    tickers = [t.strip() for t in ticker.split(",") if t.strip()]
+    if not tickers:
+        return JSONResponse(
+            content={"error": "No valid tickers provided"},
+            status_code=400
+        )
+    
+    results = []
+    for t in tickers:
+        url = (
+            f'https://api.financialdatasets.ai/crypto/prices/snapshot'
+            f'?ticker={t}'
+        )
         
-        # Format timestamp to be more readable
-        if 'timestamp' in snapshot:
-            timestamp = snapshot['timestamp']
-            if isinstance(timestamp, str):
-                from datetime import datetime
-                try:
-                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-                except ValueError:
-                    pass  # Keep original if parsing fails
+        response = requests.get(url, headers=headers)
         
-        # Return as a list with single item for table consistency
-        return [snapshot]
+        if response.status_code == 200:
+            data = response.json()
+            snapshot = data.get('snapshot', {})
+            
+            # Format timestamp
+            if 'timestamp' in snapshot:
+                timestamp = snapshot['timestamp']
+                if isinstance(timestamp, str):
+                    from datetime import datetime
+                    try:
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        pass
+            
+            results.append(snapshot)
+        else:
+            print(f"Error fetching data for {t}: {response.status_code} - {response.text}")
+    
+    return results
 
-    print(f"Request error {response.status_code}: {response.text}")
-    return JSONResponse(
-        content={"error": response.text}, status_code=response.status_code
+@app.websocket("/crypto_ws")
+async def crypto_websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for live crypto updates"""
+    await websocket.accept()
+    connection_id = str(id(websocket))
+    active_connections[connection_id] = websocket
+    subscribed_tickers[connection_id] = set()
+    
+    try:
+        await websocket_handler(websocket, connection_id)
+    except WebSocketDisconnect:
+        del active_connections[connection_id]
+        del subscribed_tickers[connection_id]
+    except Exception as e:
+        await websocket.close(code=1011)
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def websocket_handler(websocket: WebSocket, connection_id: str):
+    """Handle WebSocket connections and data updates"""
+    
+    async def consumer_handler():
+        try:
+            async for data in websocket.iter_json():
+                if tickers := data.get("params", {}).get("ticker"):
+                    # Handle both string and array inputs
+                    if isinstance(tickers, str):
+                        tickers = [t.strip() for t in tickers.split(",") if t.strip()]
+                    elif isinstance(tickers, list):
+                        tickers = [t.strip() for t in tickers if t.strip()]
+                    else:
+                        continue
+                    
+                    if tickers:  # Only update if we have valid tickers
+                        subscribed_tickers[connection_id] = set(tickers)
+        except WebSocketDisconnect:
+            return
+        except Exception as e:
+            print(f"Consumer error: {e}")
+            return
+
+    async def producer_handler():
+        headers = {"X-API-KEY": FINANCIAL_DATASETS_API_KEY}
+        
+        while websocket.client_state != WebSocketState.DISCONNECTED:
+            try:
+                current_tickers = list(subscribed_tickers[connection_id])
+                
+                for ticker in current_tickers:
+                    url = f'https://api.financialdatasets.ai/crypto/prices/snapshot?ticker={ticker}'
+                    response = requests.get(url, headers=headers)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        snapshot = data.get('snapshot', {})
+                        
+                        # Format timestamp
+                        if 'timestamp' in snapshot:
+                            timestamp = snapshot['timestamp']
+                            if isinstance(timestamp, str):
+                                from datetime import datetime
+                                try:
+                                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                                    snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                                except ValueError:
+                                    pass
+                        
+                        await websocket.send_json(snapshot)
+                    
+                    await asyncio.sleep(1)  # Wait 1 second between updates
+                
+                await asyncio.sleep(0.1)  # Small delay between ticker cycles
+                
+            except WebSocketDisconnect:
+                return
+            except Exception as e:
+                print(f"Producer error: {e}")
+                await asyncio.sleep(1)  # Wait before retrying
+    
+    consumer_task = asyncio.create_task(consumer_handler())
+    producer_task = asyncio.create_task(producer_handler())
+    
+    done, pending = await asyncio.wait(
+        [consumer_task, producer_task],
+        return_when=asyncio.FIRST_COMPLETED
     )
+    
+    for task in pending:
+        task.cancel()
