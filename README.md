@@ -13,7 +13,7 @@ Update your .env file with the API key obtained from your [Financial Datasets AP
 3. Run the custom backend
 
 ```bash
-cd src && poetry run uvicorn main:app --reload
+poetry run uvicorn src.main:app --reload
 ```
 
 4. Go into [OpenBB](httpc://pro.openbb.co), into the Data Connectors tab to  be more specific.
