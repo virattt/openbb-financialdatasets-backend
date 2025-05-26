@@ -710,6 +710,51 @@ def get_stock_tickers():
         {"label": "Tesla Inc. (TSLA)", "value": "TSLA"}
     ]
 
+@register_widget({
+    "name": "Stock News",
+    "description": "Get recent news articles for stocks, including headlines, publish dates, and article summaries.",
+    "category": "Equity",
+    "subcategory": "News",
+    "type": "table",
+    "widgetId": "stock_news",
+    "endpoint": "stock_news",
+    "gridData": {
+        "w": 40,
+        "h": 8
+    },
+    "data": {
+        "table": {
+            "showAll": True,
+            "columnsDefs": [
+                {"field": "date", "headerName": "Date", "width": 180, "cellDataType": "text", "pinned": "left"},
+                {"field": "title", "headerName": "Title", "width": 300, "cellDataType": "text"},
+                {"field": "source", "headerName": "Source", "width": 150, "cellDataType": "text"},
+                {"field": "author", "headerName": "Author", "width": 150, "cellDataType": "text"},
+                {"field": "sentiment", "headerName": "Sentiment", "width": 120, "cellDataType": "text"},
+                {"field": "url", "headerName": "URL", "width": 200, "cellDataType": "text"}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "endpoint",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "MSFT",
+            "description": "Stock ticker to get news for (Free tier: AAPL, MSFT, TSLA)",
+            "multiSelect": False,
+            "optionsEndpoint": "/stock_tickers"
+        },
+        {
+            "type": "number",
+            "paramName": "limit",
+            "label": "Number of Articles",
+            "value": "10",
+            "description": "Maximum number of news articles to display"
+        }
+    ]
+})
+
 @app.get("/stock_news")
 async def get_stock_news(ticker: str = Query(..., description="Stock ticker"), limit: int = 10):
     """Get news articles for a stock"""
@@ -727,110 +772,33 @@ async def get_stock_news(ticker: str = Query(..., description="Stock ticker"), l
 
     if response.status_code == 200:
         data = response.json()
-        articles = data.get('articles', [])
+        articles = data.get('news', [])
         
         if not articles:
-            return "# No News Articles Found\n\nNo news articles were found for this company."
+            return []
         
-        # Format the news articles into markdown
-        markdown_content = f"# News Articles for {ticker}\n\n"
-        
+        # Process each article
         for article in articles:
             # Format date
-            publish_date = article.get('publish_date', '')
-            if publish_date:
+            if 'date' in article:
                 try:
                     from datetime import datetime
-                    dt = datetime.fromisoformat(publish_date.replace('Z', '+00:00'))
-                    publish_date = dt.strftime('%B %d, %Y %H:%M:%S')
+                    dt = datetime.fromisoformat(article['date'].replace('Z', '+00:00'))
+                    article['date'] = dt.strftime('%Y-%m-%d %H:%M:%S')
                 except (ValueError, AttributeError):
                     pass
             
-            # Get article details
-            title = article.get('title', 'Untitled')
-            url = article.get('url', '')
-            source = article.get('source', 'Unknown Source')
-            summary = article.get('summary', '')
-            
-            # Format summary with proper line breaks and paragraphs
-            if summary:
-                # Replace multiple newlines with double newlines for markdown paragraphs
-                summary = summary.replace('\n\n', '\n').replace('\n', '\n\n')
-                # Truncate if too long
-                if len(summary) > 1000:
-                    summary = summary[:997] + "..."
-            
-            # Build the markdown for this article
-            markdown_content += f"## {title}\n\n"
-            markdown_content += f"**Source:** {source}\n\n"
-            markdown_content += f"**Published:** {publish_date}\n\n"
-            if url:
-                markdown_content += f"[Read Full Article]({url})\n\n"
-            if summary:
-                markdown_content += f"{summary}\n\n"
-            markdown_content += "---\n\n"  # Add separator between articles
+            # Remove unwanted fields
+            article.pop('image_url', None)
+            article.pop('ticker', None)
         
-        return markdown_content
+        return articles
 
     print(f"Request error {response.status_code}: {response.text}")
-    return f"# Error\n\nFailed to fetch news articles: {response.text}"
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
 
-@register_widget({
-    "name": "Stock News",
-    "description": "Get recent news articles for stocks, including headlines, publish dates, and article summaries.",
-    "category": "Equity",
-    "subcategory": "News",
-    "type": "markdown",
-    "widgetId": "stock_news",
-    "endpoint": "stock_news",
-    "gridData": {
-        "w": 40,
-        "h": 8
-    },
-    "params": [
-        {
-            "type": "endpoint",
-            "paramName": "ticker",
-            "label": "Symbol",
-            "value": "AAPL",
-            "description": "Stock ticker to get news for (Free tier: AAPL, MSFT, TSLA)",
-            "multiSelect": False,
-            "optionsEndpoint": "/stock_tickers"
-        },
-        {
-            "type": "number",
-            "paramName": "limit",
-            "label": "Number of Articles",
-            "value": "10",
-            "description": "Maximum number of news articles to display"
-        }
-    ]
-})
-
-# Add endpoint to get available tickers for news
-@app.get("/stock_news/tickers")
-async def get_news_tickers():
-    """Get available tickers for stock news"""
-    headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
-    }
-    
-    url = 'https://api.financialdatasets.ai/news/tickers/'
-    
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            tickers = data.get('tickers', [])
-            # Sort tickers alphabetically
-            tickers.sort()
-            # Create options list with both label and value
-            return [{"label": ticker, "value": ticker} for ticker in tickers]
-    except Exception as e:
-        print(f"Error fetching news tickers: {e}")
-    
-    # Return a default list if fetch fails
-    return [{"label": "AAPL", "value": "AAPL"}]
 
 @register_widget({
     "name": "Stock Prices Snapshot",
