@@ -452,3 +452,74 @@ def get_crypto_prices(
     return JSONResponse(
         content={"error": response.text}, status_code=response.status_code
     )
+
+@register_widget({
+    "name": "Crypto Snapshot",
+    "description": "Get real-time price snapshot for cryptocurrencies.",
+    "category": "Crypto",
+    "subcategory": "Prices",
+    "type": "table",
+    "widgetId": "crypto_snapshot",
+    "endpoint": "crypto_snapshot",
+    "gridData": {
+        "w": 10,
+        "h": 12
+    },
+    "data": {
+        "table": {
+            "showAll": True,
+            "columnsDefs": [
+                {"field": "ticker", "headerName": "Symbol", "width": 120, "cellDataType": "text"},
+                {"field": "price", "headerName": "Price", "width": 120, "cellDataType": "number"},
+                {"field": "volume_24h", "headerName": "24h Volume", "width": 150, "cellDataType": "number"},
+                {"field": "change_24h", "headerName": "24h Change", "width": 120, "cellDataType": "number"},
+                {"field": "timestamp", "headerName": "Last Updated", "width": 180, "cellDataType": "text"}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "text",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "BTC-USD",
+            "description": "Crypto ticker (e.g., BTC-USD)"
+        }
+    ]
+})
+@app.get("/crypto_snapshot")
+def get_crypto_snapshot(ticker: str):
+    """Get real-time crypto price snapshot"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/crypto/prices/snapshot'
+        f'?ticker={ticker}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        snapshot = data.get('snapshot', {})
+        
+        # Format timestamp to be more readable
+        if 'timestamp' in snapshot:
+            timestamp = snapshot['timestamp']
+            if isinstance(timestamp, str):
+                from datetime import datetime
+                try:
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    pass  # Keep original if parsing fails
+        
+        # Return as a list with single item for table consistency
+        return [snapshot]
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
