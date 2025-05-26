@@ -1205,3 +1205,101 @@ async def get_earnings_press_releases(ticker: str = Query(..., description="Comp
 
     print(f"Request error {response.status_code}: {response.text}")
     return f"# Error\n\nFailed to fetch earnings press releases: {response.text}"
+
+@register_widget({
+    "name": "Insider Trades",
+    "description": "Get insider trading activity for stocks, including transaction details, shares traded, and transaction values.",
+    "category": "Equity",
+    "subcategory": "Trading",
+    "type": "table",
+    "widgetId": "insider_trades",
+    "endpoint": "insider_trades",
+    "gridData": {
+        "w": 40,
+        "h": 8
+    },
+    "data": {
+        "table": {
+            "showAll": True,
+            "columnsDefs": [
+                {"field": "transaction_date", "headerName": "Date", "width": 180, "cellDataType": "text", "pinned": "left"},
+                {"field": "insider_name", "headerName": "Insider", "width": 200, "cellDataType": "text"},
+                {"field": "transaction_type", "headerName": "Type", "width": 120, "cellDataType": "text"},
+                {"field": "shares", "headerName": "Shares", "width": 120, "cellDataType": "number"},
+                {"field": "price", "headerName": "Price", "width": 120, "cellDataType": "number"},
+                {"field": "value", "headerName": "Value", "width": 150, "cellDataType": "number"},
+                {"field": "ownership_type", "headerName": "Ownership", "width": 150, "cellDataType": "text"}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "endpoint",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Stock ticker to get insider trades for (Free tier: AAPL, MSFT, TSLA)",
+            "optionsEndpoint": "/stock_tickers"
+        },
+        {
+            "type": "number",
+            "paramName": "limit",
+            "label": "Number of Trades",
+            "value": "50",
+            "description": "Maximum number of insider trades to display"
+        }
+    ]
+})
+
+@app.get("/insider_trades")
+async def get_insider_trades(ticker: str = Query(..., description="Stock ticker"), limit: int = 50):
+    """Get insider trading activity for a stock"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/insider-trades'
+        f'?ticker={ticker}'
+        f'&limit={limit}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        trades = data.get('insider_trades', [])
+        
+        if not trades:
+            return []
+        
+        # Process each trade
+        for trade in trades:
+            # Format date
+            if 'transaction_date' in trade:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(trade['transaction_date'].replace('Z', '+00:00'))
+                    trade['transaction_date'] = dt.strftime('%Y-%m-%d')
+                except (ValueError, AttributeError):
+                    pass
+            
+            # Format numbers
+            if 'shares' in trade:
+                trade['shares'] = int(trade['shares'])
+            if 'price' in trade:
+                trade['price'] = float(trade['price'])
+            if 'value' in trade:
+                trade['value'] = float(trade['value'])
+            
+            # Remove unwanted fields
+            trade.pop('ticker', None)
+            trade.pop('filing_date', None)
+            trade.pop('transaction_code', None)
+        
+        return trades
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
