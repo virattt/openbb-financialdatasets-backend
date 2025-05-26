@@ -1138,3 +1138,65 @@ def get_stock_prices_historical(
     return JSONResponse(
         content={"error": response.text}, status_code=response.status_code
     )
+
+@app.get("/earnings_press_releases")
+async def get_earnings_press_releases(ticker: str = Query(..., description="Company ticker")):
+    """Get earnings press releases for a company"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/earnings/press-releases'
+        f'?ticker={ticker}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        # Try both possible keys in the response
+        press_releases = data.get('press_releases', []) or data.get('releases', [])
+        
+        if not press_releases:
+            return "# No Earnings Press Releases Found\n\nNo earnings press releases were found for this company."
+        
+        # Format the press releases into markdown
+        markdown_content = f"# Earnings Press Releases for {ticker}\n\n"
+        
+        for release in press_releases:
+            # Format date
+            publish_date = release.get('publish_date', '')
+            if publish_date:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(publish_date.replace('Z', '+00:00'))
+                    publish_date = dt.strftime('%B %d, %Y %H:%M:%S')
+                except (ValueError, AttributeError):
+                    pass
+            
+            # Get title and URL
+            title = release.get('title', 'Untitled')
+            url = release.get('url', '')
+            
+            # Format text with proper line breaks and paragraphs
+            text = release.get('text', '')
+            if text:
+                # Replace multiple newlines with double newlines for markdown paragraphs
+                text = text.replace('\n\n', '\n').replace('\n', '\n\n')
+                # Truncate if too long
+                if len(text) > 1000:
+                    text = text[:997] + "..."
+            
+            # Build the markdown for this release
+            markdown_content += f"## {title}\n\n"
+            markdown_content += f"**Published:** {publish_date}\n\n"
+            if url:
+                markdown_content += f"[Read Full Release]({url})\n\n"
+            markdown_content += f"{text}\n\n"
+            markdown_content += "---\n\n"  # Add separator between releases
+        
+        return markdown_content
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return f"# Error\n\nFailed to fetch earnings press releases: {response.text}"
