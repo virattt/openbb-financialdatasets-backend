@@ -895,3 +895,222 @@ def get_stock_prices_historical(
     return JSONResponse(
         content={"error": response.text}, status_code=response.status_code
     )
+
+@register_widget({
+    "name": "Stock Prices Snapshot",
+    "description": "Get real-time price snapshot for stocks with live updates.",
+    "category": "Equity",
+    "subcategory": "Prices",
+    "type": "live_grid",
+    "widgetId": "stock_snapshot",
+    "endpoint": "stock_snapshot",
+    "wsEndpoint": "stock_ws",
+    "gridData": {
+        "w": 40,
+        "h": 8
+    },
+    "data": {
+        "wsRowIdColumn": "ticker",
+        "table": {
+            "showAll": True,
+            "columnsDefs": [
+                {"field": "ticker", "headerName": "Symbol", "width": 120, "cellDataType": "text", "pinned": "left"},
+                {
+                    "field": "price", 
+                    "headerName": "Price", 
+                    "width": 120, 
+                    "cellDataType": "number",
+                    "renderFn": "showCellChange",
+                    "renderFnParams": {
+                        "colorValueKey": "change_percent"
+                    }
+                },
+                {"field": "volume", "headerName": "Volume", "width": 150, "cellDataType": "number"},
+                {
+                    "field": "change_percent", 
+                    "headerName": "Change %", 
+                    "width": 120, 
+                    "cellDataType": "number",
+                    "renderFn": "greenRed"
+                },
+                {"field": "timestamp", "headerName": "Last Updated", "width": 180, "cellDataType": "text"}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "text",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Select stocks to track",
+            "multiSelect": True,
+            "options": [
+                {"label": "Apple Inc. (AAPL)", "value": "AAPL"},
+                {"label": "Microsoft Corp. (MSFT)", "value": "MSFT"},
+                {"label": "Amazon.com Inc. (AMZN)", "value": "AMZN"},
+                {"label": "Alphabet Inc. (GOOGL)", "value": "GOOGL"},
+                {"label": "Meta Platforms Inc. (META)", "value": "META"}
+            ]
+        }
+    ]
+})
+@app.get("/stock_snapshot")
+async def get_stock_snapshot(ticker: str = Query(..., description="Comma-separated list of tickers")):
+    """Initial data endpoint for stock snapshot"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    # Handle multiple tickers - ensure proper splitting and cleaning
+    tickers = [t.strip() for t in ticker.split(",") if t.strip()]
+    if not tickers:
+        return JSONResponse(
+            content={"error": "No valid tickers provided"},
+            status_code=400
+        )
+    
+    results = []
+    for t in tickers:
+        url = (
+            f'https://api.financialdatasets.ai/prices/snapshot'
+            f'?ticker={t}'
+        )
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            snapshot = data.get('snapshot', {})
+            
+            # Format timestamp
+            if 'timestamp' in snapshot:
+                timestamp = snapshot['timestamp']
+                if isinstance(timestamp, str):
+                    from datetime import datetime
+                    try:
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        pass
+            
+            results.append(snapshot)
+        else:
+            print(f"Error fetching data for {t}: {response.status_code} - {response.text}")
+    
+    return results
+
+@app.websocket("/stock_ws")
+async def stock_websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for live stock updates"""
+    await websocket.accept()
+    connection_id = str(id(websocket))
+    active_connections[connection_id] = websocket
+    subscribed_tickers[connection_id] = set()
+    
+    print(f"New WebSocket connection established: {connection_id}")
+    
+    try:
+        await websocket_handler(websocket, connection_id, "stock")
+    except WebSocketDisconnect:
+        print(f"WebSocket disconnected: {connection_id}")
+        del active_connections[connection_id]
+        del subscribed_tickers[connection_id]
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        await websocket.close(code=1011)
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def websocket_handler(websocket: WebSocket, connection_id: str, data_type: str = "crypto"):
+    """Handle WebSocket connections and data updates"""
+    
+    async def consumer_handler():
+        try:
+            async for data in websocket.iter_json():
+                print(f"Received WebSocket message: {data}")
+                if tickers := data.get("params", {}).get("ticker"):
+                    # Handle both string and array inputs
+                    if isinstance(tickers, str):
+                        tickers = [t.strip() for t in tickers.split(",") if t.strip()]
+                    elif isinstance(tickers, list):
+                        tickers = [t.strip() for t in tickers if t.strip()]
+                    else:
+                        continue
+                    
+                    if tickers:  # Only update if we have valid tickers
+                        print(f"Updating subscribed tickers for {connection_id}: {tickers}")
+                        subscribed_tickers[connection_id] = set(tickers)
+        except WebSocketDisconnect:
+            print(f"Consumer WebSocket disconnected: {connection_id}")
+            return
+        except Exception as e:
+            print(f"Consumer error: {e}")
+            return
+
+    async def producer_handler():
+        headers = {"X-API-KEY": FINANCIAL_DATASETS_API_KEY}
+        endpoint = "crypto/prices/snapshot" if data_type == "crypto" else "prices/snapshot"
+        
+        while websocket.client_state != WebSocketState.DISCONNECTED:
+            try:
+                current_tickers = list(subscribed_tickers[connection_id])
+                if not current_tickers:
+                    await asyncio.sleep(1)
+                    continue
+                
+                print(f"Fetching updates for tickers: {current_tickers}")
+                
+                for ticker in current_tickers:
+                    url = f'https://api.financialdatasets.ai/{endpoint}?ticker={ticker}'
+                    response = requests.get(url, headers=headers)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        snapshot = data.get('snapshot', {})
+                        
+                        if not snapshot:
+                            print(f"No snapshot data for {ticker}")
+                            continue
+                        
+                        # Ensure we have the required fields
+                        if 'price' not in snapshot:
+                            print(f"Missing price in snapshot for {ticker}: {snapshot}")
+                            continue
+                        
+                        # Format timestamp
+                        if 'timestamp' in snapshot:
+                            timestamp = snapshot['timestamp']
+                            if isinstance(timestamp, str):
+                                from datetime import datetime
+                                try:
+                                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                                    snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                                except ValueError:
+                                    pass
+                        
+                        print(f"Sending update for {ticker}: {snapshot}")
+                        await websocket.send_json(snapshot)
+                    else:
+                        print(f"Error fetching data for {ticker}: {response.status_code} - {response.text}")
+                    
+                    await asyncio.sleep(1)  # Wait 1 second between updates
+                
+                await asyncio.sleep(0.1)  # Small delay between ticker cycles
+                
+            except WebSocketDisconnect:
+                print(f"Producer WebSocket disconnected: {connection_id}")
+                return
+            except Exception as e:
+                print(f"Producer error: {e}")
+                await asyncio.sleep(1)  # Wait before retrying
+    
+    consumer_task = asyncio.create_task(consumer_handler())
+    producer_task = asyncio.create_task(producer_handler())
+    
+    done, pending = await asyncio.wait(
+        [consumer_task, producer_task],
+        return_when=asyncio.FIRST_COMPLETED
+    )
+    
+    for task in pending:
+        task.cancel()
