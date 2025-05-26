@@ -154,11 +154,9 @@ def get_widgets():
 @app.get("/income")
 def get_income(ticker: str, period: str, limit: int):
     """Get income statement"""
-    # add your API key to the headers
     headers = {
         "X-API-KEY": FINANCIAL_DATASETS_API_KEY
     }
-    # create the URL
     url = (
         f'https://api.financialdatasets.ai/financials/income-statements'
         f'?ticker={ticker}'
@@ -166,14 +164,17 @@ def get_income(ticker: str, period: str, limit: int):
         f'&limit={limit}'
     )
 
-    # make API request
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
         data = response.json()
         statements = data.get('income_statements', [])
         for stmt in statements:
+            # Remove unnecessary fields
             stmt.pop('ticker', None)
+            stmt.pop('period', None)
+            stmt.pop('fiscal_period', None)
+            stmt.pop('currency', None)
         return statements
 
     print(f"Request error {response.status_code}: {response.text}")
@@ -240,11 +241,9 @@ def get_income(ticker: str, period: str, limit: int):
 @app.get("/balance")
 def get_balance(ticker: str, period: str, limit: int):
     """Get balance sheet"""
-    # add your API key to the headers
     headers = {
         "X-API-KEY": FINANCIAL_DATASETS_API_KEY
     }
-    # create the URL
     url = (
         f'https://api.financialdatasets.ai/financials/balance-sheets'
         f'?ticker={ticker}'
@@ -252,15 +251,16 @@ def get_balance(ticker: str, period: str, limit: int):
         f'&limit={limit}'
     )
 
-    # make API request
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
-        # parse balance_sheets from the response
         balance_sheets = response.json().get('balance_sheets', [])
         for sheet in balance_sheets:
+            # Remove unnecessary fields
             sheet.pop('ticker', None)
-
+            sheet.pop('period', None)
+            sheet.pop('fiscal_period', None)
+            sheet.pop('currency', None)
         return balance_sheets
 
     print(f"Request error {response.status_code}: {response.text}")
@@ -1586,11 +1586,9 @@ async def get_institutional_ownership_by_ticker(
 @app.get("/cash_flow")
 def get_cash_flow(ticker: str, period: str, limit: int):
     """Get cash flow statement"""
-    # add your API key to the headers
     headers = {
         "X-API-KEY": FINANCIAL_DATASETS_API_KEY
     }
-    # create the URL
     url = (
         f'https://api.financialdatasets.ai/financials/cash-flow-statements'
         f'?ticker={ticker}'
@@ -1598,14 +1596,17 @@ def get_cash_flow(ticker: str, period: str, limit: int):
         f'&limit={limit}'
     )
 
-    # make API request
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
         data = response.json()
         statements = data.get('cash_flow_statements', [])
         for stmt in statements:
+            # Remove unnecessary fields
             stmt.pop('ticker', None)
+            stmt.pop('period', None)
+            stmt.pop('fiscal_period', None)
+            stmt.pop('currency', None)
         return statements
 
     print(f"Request error {response.status_code}: {response.text}")
@@ -1705,9 +1706,11 @@ def get_financial_metrics(ticker: str, period: str, limit: int):
         
         # Process each period's metrics
         for metric in metrics:
-            # Remove ticker and period fields
+            # Remove unnecessary fields
             metric.pop('ticker', None)
             metric.pop('period', None)
+            metric.pop('fiscal_period', None)
+            metric.pop('currency', None)
             
             # Format reported period date
             if 'reported_period' in metric:
