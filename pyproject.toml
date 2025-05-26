@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["DidierRLopes <dro.lopes@campus.fct.unl.pt>"]
 readme = "README.md"
-packages = [{include = "openbb_financialdatasets_backend"}]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
