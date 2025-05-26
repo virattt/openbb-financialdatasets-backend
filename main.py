@@ -450,7 +450,12 @@ def get_crypto_prices(
                     except ValueError:
                         pass  # Keep original if parsing fails
         
-        return prices
+        crypto_prices = prices["prices"]
+
+        for price in crypto_prices:
+            price.pop('ticker', None)
+
+        return crypto_prices
 
     print(f"Request error {response.status_code}: {response.text}")
     return JSONResponse(
