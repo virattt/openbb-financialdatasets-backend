@@ -1327,13 +1327,13 @@ async def get_institutional_investors():
     return []
 
 @register_widget({
-    "name": "Institutional Ownership",
+    "name": "Institutional Ownership by Investor",
     "description": "Get institutional ownership data showing holdings of major investors like Berkshire Hathaway, BlackRock, and Vanguard.",
     "category": "Equity",
     "subcategory": "Ownership",
     "type": "table",
-    "widgetId": "institutional_ownership_by_ticker",
-    "endpoint": "institutional_ownership_by_ticker",
+    "widgetId": "institutional_ownership_by_investor",
+    "endpoint": "institutional_ownership_by_investor",
     "gridData": {
         "w": 40,
         "h": 8
@@ -1373,8 +1373,8 @@ async def get_institutional_investors():
     ]
 })
 
-@app.get("/institutional_ownership_by_ticker")
-async def get_institutional_ownership_by_ticker(
+@app.get("/institutional_ownership_by_investor")
+async def get_institutional_ownership_by_investor(
     investor: str = Query(..., description="Institutional investor name"),
     limit: int = 100
 ):
@@ -1416,6 +1416,108 @@ async def get_institutional_ownership_by_ticker(
                 holding['value'] = float(holding['value'])
             if 'weight' in holding:
                 holding['weight'] = float(holding['weight'])
+        
+        return holdings
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
+
+@register_widget({
+    "name": "Institutional Ownership by Ticker",
+    "description": "Get institutional ownership data showing which institutions hold a specific stock.",
+    "category": "Equity",
+    "subcategory": "Ownership",
+    "type": "table",
+    "widgetId": "institutional_ownership_by_ticker",
+    "endpoint": "institutional_ownership_by_ticker",
+    "gridData": {
+        "w": 40,
+        "h": 8
+    },
+    "data": {
+        "table": {
+            "showAll": True,
+            "columnsDefs": [
+                {"field": "investor", "headerName": "Investor", "width": 250, "cellDataType": "text", "pinned": "left"},
+                {"field": "shares", "headerName": "Shares", "width": 150, "cellDataType": "number"},
+                {"field": "value", "headerName": "Value", "width": 150, "cellDataType": "number"},
+                {"field": "weight", "headerName": "Weight %", "width": 120, "cellDataType": "number"},
+                {"field": "report_date", "headerName": "Report Date", "width": 180, "cellDataType": "text"}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "endpoint",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Stock ticker to get institutional ownership for (Free tier: AAPL, MSFT, TSLA)",
+            "optionsEndpoint": "/stock_tickers"
+        },
+        {
+            "type": "number",
+            "paramName": "limit",
+            "label": "Number of Holdings",
+            "value": "100",
+            "description": "Maximum number of institutional holders to display"
+        }
+    ]
+})
+
+@app.get("/institutional_ownership_by_ticker")
+async def get_institutional_ownership_by_ticker(
+    ticker: str = Query(..., description="Stock ticker"),
+    limit: int = 100
+):
+    """Get institutional ownership data for a stock"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/institutional-ownership'
+        f'?ticker={ticker}'
+        f'&limit={limit}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        holdings = data.get('institutional_ownership', [])
+        
+        if not holdings:
+            return []
+        
+        # Process each holding
+        for holding in holdings:
+            # Format investor name for display
+            if 'investor' in holding:
+                holding['investor'] = holding['investor'].replace('_', ' ').title()
+            
+            # Format date
+            if 'report_date' in holding:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(holding['report_date'].replace('Z', '+00:00'))
+                    holding['report_date'] = dt.strftime('%Y-%m-%d')
+                except (ValueError, AttributeError):
+                    pass
+            
+            # Format numbers
+            if 'shares' in holding:
+                holding['shares'] = int(holding['shares'])
+            if 'value' in holding:
+                holding['value'] = float(holding['value'])
+            if 'weight' in holding:
+                holding['weight'] = float(holding['weight'])
+            
+            # Remove unwanted fields
+            holding.pop('ticker', None)
+            holding.pop('company_name', None)
         
         return holdings
 
