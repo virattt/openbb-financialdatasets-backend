@@ -1303,3 +1303,123 @@ async def get_insider_trades(ticker: str = Query(..., description="Stock ticker"
     return JSONResponse(
         content={"error": response.text}, status_code=response.status_code
     )
+
+@app.get("/institutional_investors")
+async def get_institutional_investors():
+    """Get list of available institutional investors"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = 'https://api.financialdatasets.ai/institutional-ownership/investors/'
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        data = response.json()
+        investors = data.get('investors', [])
+        # Sort investors alphabetically
+        investors.sort()
+        # Create options list with both label and value
+        return [{"label": investor.replace('_', ' ').title(), "value": investor} for investor in investors]
+    
+    print(f"Request error {response.status_code}: {response.text}")
+    return []
+
+@register_widget({
+    "name": "Institutional Ownership",
+    "description": "Get institutional ownership data showing holdings of major investors like Berkshire Hathaway, BlackRock, and Vanguard.",
+    "category": "Equity",
+    "subcategory": "Ownership",
+    "type": "table",
+    "widgetId": "institutional_ownership_by_ticker",
+    "endpoint": "institutional_ownership_by_ticker",
+    "gridData": {
+        "w": 40,
+        "h": 8
+    },
+    "data": {
+        "table": {
+            "showAll": True,
+            "columnsDefs": [
+                {"field": "ticker", "headerName": "Symbol", "width": 120, "cellDataType": "text", "pinned": "left"},
+                {"field": "company_name", "headerName": "Company", "width": 200, "cellDataType": "text"},
+                {"field": "shares", "headerName": "Shares", "width": 150, "cellDataType": "number"},
+                {"field": "value", "headerName": "Value", "width": 150, "cellDataType": "number"},
+                {"field": "weight", "headerName": "Weight %", "width": 120, "cellDataType": "number"},
+                {"field": "report_date", "headerName": "Report Date", "width": 180, "cellDataType": "text"}
+            ]
+        }
+    },
+    "params": [
+        {
+            "type": "endpoint",
+            "paramName": "investor",
+            "label": "Investor",
+            "value": "BERKSHIRE_HATHAWAY_INC",
+            "description": "Institutional investor name",
+            "optionsEndpoint": "/institutional_investors",
+            "style": {
+                "popupWidth": 450
+            }
+        },
+        {
+            "type": "number",
+            "paramName": "limit",
+            "label": "Number of Holdings",
+            "value": "100",
+            "description": "Maximum number of holdings to display"
+        }
+    ]
+})
+
+@app.get("/institutional_ownership_by_ticker")
+async def get_institutional_ownership_by_ticker(
+    investor: str = Query(..., description="Institutional investor name"),
+    limit: int = 100
+):
+    """Get institutional ownership data for an investor"""
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    
+    url = (
+        f'https://api.financialdatasets.ai/institutional-ownership'
+        f'?investor={investor}'
+        f'&limit={limit}'
+    )
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        holdings = data.get('institutional_ownership', [])
+        
+        if not holdings:
+            return []
+        
+        # Process each holding
+        for holding in holdings:
+            # Format date
+            if 'report_date' in holding:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(holding['report_date'].replace('Z', '+00:00'))
+                    holding['report_date'] = dt.strftime('%Y-%m-%d')
+                except (ValueError, AttributeError):
+                    pass
+            
+            # Format numbers
+            if 'shares' in holding:
+                holding['shares'] = int(holding['shares'])
+            if 'value' in holding:
+                holding['value'] = float(holding['value'])
+            if 'weight' in holding:
+                holding['weight'] = float(holding['weight'])
+        
+        return holdings
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
