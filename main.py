@@ -1525,3 +1525,90 @@ async def get_institutional_ownership_by_ticker(
     return JSONResponse(
         content={"error": response.text}, status_code=response.status_code
     )
+
+@register_widget({
+    "name": "Cash Flow Statement",
+    "description": "Financial statements that provide information about a company's cash inflows and outflows over a specific period.",
+    "category": "Equity",
+    "subcategory": "Financials",
+    "widgetType": "individual",
+    "widgetId": "cash_flow",
+    "endpoint": "cash_flow",
+    "gridData": {
+        "w": 80,
+        "h": 12
+    },
+    "data": {
+        "table": {
+            "showAll": True
+        }
+    },
+    "params": [
+        {
+            "type": "endpoint",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "AAPL",
+            "description": "Ticker to get cash flow statement for (Free tier: AAPL, MSFT, TSLA)",
+            "optionsEndpoint": "/stock_tickers"
+        },
+        {
+            "type": "text",
+            "value": "annual",
+            "paramName": "period",
+            "label": "Period",
+            "description": "Period to get statements from",
+            "options": [
+                {
+                    "value": "annual",
+                    "label": "Annual"
+                },
+                {
+                    "value": "quarterly",
+                    "label": "Quarterly"
+                },
+                {
+                    "value": "ttm",
+                    "label": "TTM"
+                }
+            ]
+        },
+        {
+            "type": "number",
+            "paramName": "limit",
+            "label": "Number of Statements",
+            "value": "10",
+            "description": "Number of statements to display"
+        }
+    ]
+})
+
+@app.get("/cash_flow")
+def get_cash_flow(ticker: str, period: str, limit: int):
+    """Get cash flow statement"""
+    # add your API key to the headers
+    headers = {
+        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+    }
+    # create the URL
+    url = (
+        f'https://api.financialdatasets.ai/financials/cash-flow-statements'
+        f'?ticker={ticker}'
+        f'&period={period}'
+        f'&limit={limit}'
+    )
+
+    # make API request
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        statements = data.get('cash_flow_statements', [])
+        for stmt in statements:
+            stmt.pop('ticker', None)
+        return statements
+
+    print(f"Request error {response.status_code}: {response.text}")
+    return JSONResponse(
+        content={"error": response.text}, status_code=response.status_code
+    )
