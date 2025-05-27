@@ -78,6 +78,10 @@ FINANCIAL_DATASETS_API_KEY = os.getenv("FINANCIAL_DATASETS_API_KEY")
 def read_root():
     return {"Info": "Financial Datasets to integrate with OpenBB"}
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint for monitoring"""
+    return {"status": "healthy"}
 
 # Apps configuration file for the OpenBB Workspace
 # it contains the information and configuration about all the
@@ -133,7 +137,7 @@ def get_widgets():
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "NVDA",
             "description": "Ticker to get income statement for (Free tier: AAPL, MSFT, TSLA)",
             "optionsEndpoint": "/stock_tickers"
         },
@@ -205,7 +209,7 @@ def get_income(ticker: str, period: str, limit: int):
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "NVDA",
             "description": "Ticker to get balance sheet for (Free tier: AAPL, MSFT, TSLA)",
             "optionsEndpoint": "/stock_tickers"
         },
@@ -276,7 +280,7 @@ def get_balance(ticker: str, period: str, limit: int):
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "NVDA",
             "description": "Ticker to get financial metrics for (Free tier: AAPL, MSFT, TSLA)",
             "optionsEndpoint": "/stock_tickers"
         },
@@ -414,7 +418,7 @@ def get_financial_metrics(ticker: str, period: str, limit: int):
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "NVDA",
             "description": "Ticker to get cash flow statement for (Free tier: AAPL, MSFT, TSLA)",
             "optionsEndpoint": "/stock_tickers"
         },
@@ -495,7 +499,7 @@ def get_cash_flow(ticker: str, period: str, limit: int):
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "NVDA",
             "description": "Ticker to get company facts for (Free tier: AAPL, MSFT, TSLA)",
             "optionsEndpoint": "/stock_tickers"
         }
@@ -663,194 +667,194 @@ def get_crypto_prices(
         content={"error": response.text}, status_code=response.status_code
     )
 
-@register_widget({
-    "name": "Crypto Snapshot",
-    "description": "Get real-time price snapshot for cryptocurrencies with live updates.",
-    "category": "Crypto",
-    "subcategory": "Prices",
-    "type": "live_grid",
-    "widgetId": "crypto_snapshot",
-    "endpoint": "crypto_snapshot",
-    "wsEndpoint": "crypto_ws",
-    "gridData": {
-        "w": 40,
-        "h": 8
-    },
-    "data": {
-        "wsRowIdColumn": "ticker",
-        "table": {
-            "showAll": True,
-            "columnsDefs": [
-                {"field": "ticker", "headerName": "Symbol", "width": 120, "cellDataType": "text"},
-                {
-                    "field": "price", 
-                    "headerName": "Price", 
-                    "width": 120, 
-                    "cellDataType": "number",
-                    "renderFn": "showCellChange",
-                    "renderFnParams": {
-                        "colorValueKey": "change_24h"
-                    }
-                },
-                {"field": "volume_24h", "headerName": "24h Volume", "width": 150, "cellDataType": "number"},
-                {
-                    "field": "change_24h", 
-                    "headerName": "24h Change", 
-                    "width": 120, 
-                    "cellDataType": "number",
-                    "renderFn": "greenRed"
-                },
-                {"field": "timestamp", "headerName": "Last Updated", "width": 180, "cellDataType": "text"}
-            ]
-        }
-    },
-    "params": [
-        {
-            "type": "text",
-            "paramName": "ticker",
-            "label": "Symbol",
-            "value": "BTC-USD",
-            "description": "Select cryptocurrencies to track",
-            "multiSelect": True,
-            "options": [
-                {"label": "Bitcoin (BTC-USD)", "value": "BTC-USD"}
-            ]
-        }
-    ]
-})
-@app.get("/crypto_snapshot")
-async def get_crypto_snapshot(ticker: str = Query(..., description="Comma-separated list of tickers")):
-    """Initial data endpoint for crypto snapshot"""
-    headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
-    }
+# @register_widget({
+#     "name": "Crypto Snapshot",
+#     "description": "Get real-time price snapshot for cryptocurrencies with live updates.",
+#     "category": "Crypto",
+#     "subcategory": "Prices",
+#     "type": "live_grid",
+#     "widgetId": "crypto_snapshot",
+#     "endpoint": "crypto_snapshot",
+#     "wsEndpoint": "crypto_ws",
+#     "gridData": {
+#         "w": 40,
+#         "h": 8
+#     },
+#     "data": {
+#         "wsRowIdColumn": "ticker",
+#         "table": {
+#             "showAll": True,
+#             "columnsDefs": [
+#                 {"field": "ticker", "headerName": "Symbol", "width": 120, "cellDataType": "text"},
+#                 {
+#                     "field": "price", 
+#                     "headerName": "Price", 
+#                     "width": 120, 
+#                     "cellDataType": "number",
+#                     "renderFn": "showCellChange",
+#                     "renderFnParams": {
+#                         "colorValueKey": "change_24h"
+#                     }
+#                 },
+#                 {"field": "volume_24h", "headerName": "24h Volume", "width": 150, "cellDataType": "number"},
+#                 {
+#                     "field": "change_24h", 
+#                     "headerName": "24h Change", 
+#                     "width": 120, 
+#                     "cellDataType": "number",
+#                     "renderFn": "greenRed"
+#                 },
+#                 {"field": "timestamp", "headerName": "Last Updated", "width": 180, "cellDataType": "text"}
+#             ]
+#         }
+#     },
+#     "params": [
+#         {
+#             "type": "text",
+#             "paramName": "ticker",
+#             "label": "Symbol",
+#             "value": "BTC-USD",
+#             "description": "Select cryptocurrencies to track",
+#             "multiSelect": True,
+#             "options": [
+#                 {"label": "Bitcoin (BTC-USD)", "value": "BTC-USD"}
+#             ]
+#         }
+#     ]
+# })
+# @app.get("/crypto_snapshot")
+# async def get_crypto_snapshot(ticker: str = Query(..., description="Comma-separated list of tickers")):
+#     """Initial data endpoint for crypto snapshot"""
+#     headers = {
+#         "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+#     }
     
-    # Handle multiple tickers - ensure proper splitting and cleaning
-    tickers = [t.strip() for t in ticker.split(",") if t.strip()]
-    if not tickers:
-        return JSONResponse(
-            content={"error": "No valid tickers provided"},
-            status_code=400
-        )
+#     # Handle multiple tickers - ensure proper splitting and cleaning
+#     tickers = [t.strip() for t in ticker.split(",") if t.strip()]
+#     if not tickers:
+#         return JSONResponse(
+#             content={"error": "No valid tickers provided"},
+#             status_code=400
+#         )
     
-    results = []
-    for t in tickers:
-        url = (
-            f'https://api.financialdatasets.ai/crypto/prices/snapshot'
-            f'?ticker={t}'
-        )
+#     results = []
+#     for t in tickers:
+#         url = (
+#             f'https://api.financialdatasets.ai/crypto/prices/snapshot'
+#             f'?ticker={t}'
+#         )
         
-        response = requests.get(url, headers=headers)
+#         response = requests.get(url, headers=headers)
         
-        if response.status_code == 200:
-            data = response.json()
-            snapshot = data.get('snapshot', {})
+#         if response.status_code == 200:
+#             data = response.json()
+#             snapshot = data.get('snapshot', {})
             
-            # Format timestamp
-            if 'timestamp' in snapshot:
-                timestamp = snapshot['timestamp']
-                if isinstance(timestamp, str):
-                    from datetime import datetime
-                    try:
-                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                        snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-                    except ValueError:
-                        pass
+#             # Format timestamp
+#             if 'timestamp' in snapshot:
+#                 timestamp = snapshot['timestamp']
+#                 if isinstance(timestamp, str):
+#                     from datetime import datetime
+#                     try:
+#                         dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+#                         snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+#                     except ValueError:
+#                         pass
             
-            results.append(snapshot)
-        else:
-            print(f"Error fetching data for {t}: {response.status_code} - {response.text}")
+#             results.append(snapshot)
+#         else:
+#             print(f"Error fetching data for {t}: {response.status_code} - {response.text}")
     
-    return results
+#     return results
 
-@app.websocket("/crypto_ws")
-async def crypto_websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for live crypto updates"""
-    await websocket.accept()
-    connection_id = str(id(websocket))
-    active_connections[connection_id] = websocket
-    subscribed_tickers[connection_id] = set()
+# @app.websocket("/crypto_ws")
+# async def crypto_websocket_endpoint(websocket: WebSocket):
+#     """WebSocket endpoint for live crypto updates"""
+#     await websocket.accept()
+#     connection_id = str(id(websocket))
+#     active_connections[connection_id] = websocket
+#     subscribed_tickers[connection_id] = set()
     
-    try:
-        await websocket_handler(websocket, connection_id)
-    except WebSocketDisconnect:
-        del active_connections[connection_id]
-        del subscribed_tickers[connection_id]
-    except Exception as e:
-        await websocket.close(code=1011)
-        raise HTTPException(status_code=500, detail=str(e))
+#     try:
+#         await websocket_handler(websocket, connection_id)
+#     except WebSocketDisconnect:
+#         del active_connections[connection_id]
+#         del subscribed_tickers[connection_id]
+#     except Exception as e:
+#         await websocket.close(code=1011)
+#         raise HTTPException(status_code=500, detail=str(e))
 
-async def websocket_handler(websocket: WebSocket, connection_id: str):
-    """Handle WebSocket connections and data updates"""
+# async def websocket_handler(websocket: WebSocket, connection_id: str):
+#     """Handle WebSocket connections and data updates"""
     
-    async def consumer_handler():
-        try:
-            async for data in websocket.iter_json():
-                if tickers := data.get("params", {}).get("ticker"):
-                    # Handle both string and array inputs
-                    if isinstance(tickers, str):
-                        tickers = [t.strip() for t in tickers.split(",") if t.strip()]
-                    elif isinstance(tickers, list):
-                        tickers = [t.strip() for t in tickers if t.strip()]
-                    else:
-                        continue
+#     async def consumer_handler():
+#         try:
+#             async for data in websocket.iter_json():
+#                 if tickers := data.get("params", {}).get("ticker"):
+#                     # Handle both string and array inputs
+#                     if isinstance(tickers, str):
+#                         tickers = [t.strip() for t in tickers.split(",") if t.strip()]
+#                     elif isinstance(tickers, list):
+#                         tickers = [t.strip() for t in tickers if t.strip()]
+#                     else:
+#                         continue
                     
-                    if tickers:  # Only update if we have valid tickers
-                        subscribed_tickers[connection_id] = set(tickers)
-        except WebSocketDisconnect:
-            return
-        except Exception as e:
-            print(f"Consumer error: {e}")
-            return
+#                     if tickers:  # Only update if we have valid tickers
+#                         subscribed_tickers[connection_id] = set(tickers)
+#         except WebSocketDisconnect:
+#             return
+#         except Exception as e:
+#             print(f"Consumer error: {e}")
+#             return
 
-    async def producer_handler():
-        headers = {"X-API-KEY": FINANCIAL_DATASETS_API_KEY}
+#     async def producer_handler():
+#         headers = {"X-API-KEY": FINANCIAL_DATASETS_API_KEY}
         
-        while websocket.client_state != WebSocketState.DISCONNECTED:
-            try:
-                current_tickers = list(subscribed_tickers[connection_id])
+#         while websocket.client_state != WebSocketState.DISCONNECTED:
+#             try:
+#                 current_tickers = list(subscribed_tickers[connection_id])
                 
-                for ticker in current_tickers:
-                    url = f'https://api.financialdatasets.ai/crypto/prices/snapshot?ticker={ticker}'
-                    response = requests.get(url, headers=headers)
+#                 for ticker in current_tickers:
+#                     url = f'https://api.financialdatasets.ai/crypto/prices/snapshot?ticker={ticker}'
+#                     response = requests.get(url, headers=headers)
                     
-                    if response.status_code == 200:
-                        data = response.json()
-                        snapshot = data.get('snapshot', {})
+#                     if response.status_code == 200:
+#                         data = response.json()
+#                         snapshot = data.get('snapshot', {})
                         
-                        # Format timestamp
-                        if 'timestamp' in snapshot:
-                            timestamp = snapshot['timestamp']
-                            if isinstance(timestamp, str):
-                                from datetime import datetime
-                                try:
-                                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                                    snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-                                except ValueError:
-                                    pass
+#                         # Format timestamp
+#                         if 'timestamp' in snapshot:
+#                             timestamp = snapshot['timestamp']
+#                             if isinstance(timestamp, str):
+#                                 from datetime import datetime
+#                                 try:
+#                                     dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+#                                     snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+#                                 except ValueError:
+#                                     pass
                         
-                        await websocket.send_json(snapshot)
+#                         await websocket.send_json(snapshot)
                     
-                    await asyncio.sleep(1)  # Wait 1 second between updates
+#                     await asyncio.sleep(1)  # Wait 1 second between updates
                 
-                await asyncio.sleep(0.1)  # Small delay between ticker cycles
+#                 await asyncio.sleep(0.1)  # Small delay between ticker cycles
                 
-            except WebSocketDisconnect:
-                return
-            except Exception as e:
-                print(f"Producer error: {e}")
-                await asyncio.sleep(1)  # Wait before retrying
+#             except WebSocketDisconnect:
+#                 return
+#             except Exception as e:
+#                 print(f"Producer error: {e}")
+#                 await asyncio.sleep(1)  # Wait before retrying
     
-    consumer_task = asyncio.create_task(consumer_handler())
-    producer_task = asyncio.create_task(producer_handler())
+#     consumer_task = asyncio.create_task(consumer_handler())
+#     producer_task = asyncio.create_task(producer_handler())
     
-    done, pending = await asyncio.wait(
-        [consumer_task, producer_task],
-        return_when=asyncio.FIRST_COMPLETED
-    )
+#     done, pending = await asyncio.wait(
+#         [consumer_task, producer_task],
+#         return_when=asyncio.FIRST_COMPLETED
+#     )
     
-    for task in pending:
-        task.cancel()
+#     for task in pending:
+#         task.cancel()
 
 # Add this function to fetch available tickers
 async def get_available_tickers():
@@ -874,32 +878,8 @@ async def get_available_tickers():
         print(f"Error fetching tickers: {e}")
     
     # Return a default list if fetch fails
-    return [{"label": "AAPL", "value": "AAPL"}]
+    return [{"label": "NVDA", "value": "NVDA"}]
 
-@register_widget({
-    "name": "Earnings Press Releases",
-    "description": "Get earnings-related press releases for companies, including URL, publish date, and full text.",
-    "category": "Equity",
-    "subcategory": "Earnings",
-    "type": "markdown",
-    "widgetId": "earnings_press_releases",
-    "endpoint": "earnings_press_releases",
-    "gridData": {
-        "w": 40,
-        "h": 8
-    },
-    "params": [
-        {
-            "type": "endpoint",
-            "paramName": "ticker",
-            "label": "Symbol",
-            "value": "AAL",
-            "description": "Company ticker to get earnings press releases for",
-            "multiSelect": False,
-            "optionsEndpoint": "/earnings_press_releases/tickers"
-        }
-    ]
-})
 
 # Add back the endpoint to get available tickers
 @app.get("/earnings_press_releases/tickers")
@@ -913,7 +893,8 @@ def get_stock_tickers():
     return [
         {"label": "Apple Inc. (AAPL)", "value": "AAPL"},
         {"label": "Microsoft Corp. (MSFT)", "value": "MSFT"},
-        {"label": "Tesla Inc. (TSLA)", "value": "TSLA"}
+        {"label": "Tesla Inc. (TSLA)", "value": "TSLA"},
+        {"label": "NVIDIA Corp. (NVDA)", "value": "NVDA"}
     ]
 
 @register_widget({
@@ -946,7 +927,7 @@ def get_stock_tickers():
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "MSFT",
+            "value": "NVDA",
             "description": "Stock ticker to get news for (Free tier: AAPL, MSFT, TSLA)",
             "multiSelect": False,
             "optionsEndpoint": "/stock_tickers"
@@ -1006,218 +987,218 @@ async def get_stock_news(ticker: str = Query(..., description="Stock ticker"), l
     )
 
 
-@register_widget({
-    "name": "Stock Prices Snapshot",
-    "description": "Get real-time price snapshot for stocks with live updates.",
-    "category": "Equity",
-    "subcategory": "Prices",
-    "type": "live_grid",
-    "widgetId": "stock_snapshot",
-    "endpoint": "stock_snapshot",
-    "wsEndpoint": "stock_ws",
-    "gridData": {
-        "w": 40,
-        "h": 8
-    },
-    "data": {
-        "wsRowIdColumn": "ticker",
-        "table": {
-            "showAll": True,
-            "columnsDefs": [
-                {"field": "ticker", "headerName": "Symbol", "width": 120, "cellDataType": "text", "pinned": "left"},
-                {
-                    "field": "price", 
-                    "headerName": "Price", 
-                    "width": 120, 
-                    "cellDataType": "number",
-                    "renderFn": "showCellChange",
-                    "renderFnParams": {
-                        "colorValueKey": "change_percent"
-                    }
-                },
-                {"field": "volume", "headerName": "Volume", "width": 150, "cellDataType": "number"},
-                {
-                    "field": "change_percent", 
-                    "headerName": "Change %", 
-                    "width": 120, 
-                    "cellDataType": "number",
-                    "renderFn": "greenRed"
-                },
-                {"field": "timestamp", "headerName": "Last Updated", "width": 180, "cellDataType": "text"}
-            ]
-        }
-    },
-    "params": [
-        {
-            "type": "endpoint",
-            "paramName": "ticker",
-            "label": "Symbol",
-            "value": "AAPL",
-            "description": "Select stocks to track (Free tier: AAPL, MSFT, TSLA)",
-            "multiSelect": True,
-            "optionsEndpoint": "/stock_tickers"
-        }
-    ]
-})
-@app.get("/stock_snapshot")
-async def get_stock_snapshot(ticker: str = Query(..., description="Comma-separated list of tickers")):
-    """Initial data endpoint for stock snapshot"""
-    headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
-    }
+# @register_widget({
+#     "name": "Stock Prices Snapshot",
+#     "description": "Get real-time price snapshot for stocks with live updates.",
+#     "category": "Equity",
+#     "subcategory": "Prices",
+#     "type": "live_grid",
+#     "widgetId": "stock_snapshot",
+#     "endpoint": "stock_snapshot",
+#     "wsEndpoint": "stock_ws",
+#     "gridData": {
+#         "w": 40,
+#         "h": 8
+#     },
+#     "data": {
+#         "wsRowIdColumn": "ticker",
+#         "table": {
+#             "showAll": True,
+#             "columnsDefs": [
+#                 {"field": "ticker", "headerName": "Symbol", "width": 120, "cellDataType": "text", "pinned": "left"},
+#                 {
+#                     "field": "price", 
+#                     "headerName": "Price", 
+#                     "width": 120, 
+#                     "cellDataType": "number",
+#                     "renderFn": "showCellChange",
+#                     "renderFnParams": {
+#                         "colorValueKey": "change_percent"
+#                     }
+#                 },
+#                 {"field": "volume", "headerName": "Volume", "width": 150, "cellDataType": "number"},
+#                 {
+#                     "field": "change_percent", 
+#                     "headerName": "Change %", 
+#                     "width": 120, 
+#                     "cellDataType": "number",
+#                     "renderFn": "greenRed"
+#                 },
+#                 {"field": "timestamp", "headerName": "Last Updated", "width": 180, "cellDataType": "text"}
+#             ]
+#         }
+#     },
+#     "params": [
+#         {
+#             "type": "endpoint",
+#             "paramName": "ticker",
+#             "label": "Symbol",
+#             "value": "NVDA",
+#             "description": "Select stocks to track (Free tier: AAPL, MSFT, TSLA)",
+#             "multiSelect": True,
+#             "optionsEndpoint": "/stock_tickers"
+#         }
+#     ]
+# })
+# @app.get("/stock_snapshot")
+# async def get_stock_snapshot(ticker: str = Query(..., description="Comma-separated list of tickers")):
+#     """Initial data endpoint for stock snapshot"""
+#     headers = {
+#         "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+#     }
     
-    # Handle multiple tickers - ensure proper splitting and cleaning
-    tickers = [t.strip() for t in ticker.split(",") if t.strip()]
-    if not tickers:
-        return JSONResponse(
-            content={"error": "No valid tickers provided"},
-            status_code=400
-        )
+#     # Handle multiple tickers - ensure proper splitting and cleaning
+#     tickers = [t.strip() for t in ticker.split(",") if t.strip()]
+#     if not tickers:
+#         return JSONResponse(
+#             content={"error": "No valid tickers provided"},
+#             status_code=400
+#         )
     
-    results = []
-    for t in tickers:
-        url = (
-            f'https://api.financialdatasets.ai/prices/snapshot'
-            f'?ticker={t}'
-        )
+#     results = []
+#     for t in tickers:
+#         url = (
+#             f'https://api.financialdatasets.ai/prices/snapshot'
+#             f'?ticker={t}'
+#         )
         
-        response = requests.get(url, headers=headers)
+#         response = requests.get(url, headers=headers)
         
-        if response.status_code == 200:
-            data = response.json()
-            snapshot = data.get('snapshot', {})
+#         if response.status_code == 200:
+#             data = response.json()
+#             snapshot = data.get('snapshot', {})
             
-            # Format timestamp
-            if 'timestamp' in snapshot:
-                timestamp = snapshot['timestamp']
-                if isinstance(timestamp, str):
-                    from datetime import datetime
-                    try:
-                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                        snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-                    except ValueError:
-                        pass
+#             # Format timestamp
+#             if 'timestamp' in snapshot:
+#                 timestamp = snapshot['timestamp']
+#                 if isinstance(timestamp, str):
+#                     from datetime import datetime
+#                     try:
+#                         dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+#                         snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+#                     except ValueError:
+#                         pass
             
-            results.append(snapshot)
-        else:
-            print(f"Error fetching data for {t}: {response.status_code} - {response.text}")
+#             results.append(snapshot)
+#         else:
+#             print(f"Error fetching data for {t}: {response.status_code} - {response.text}")
     
-    return results
+#     return results
 
-@app.websocket("/stock_ws")
-async def stock_websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for live stock updates"""
-    await websocket.accept()
-    connection_id = str(id(websocket))
-    active_connections[connection_id] = websocket
-    subscribed_tickers[connection_id] = set()
+# @app.websocket("/stock_ws")
+# async def stock_websocket_endpoint(websocket: WebSocket):
+#     """WebSocket endpoint for live stock updates"""
+#     await websocket.accept()
+#     connection_id = str(id(websocket))
+#     active_connections[connection_id] = websocket
+#     subscribed_tickers[connection_id] = set()
     
-    print(f"New WebSocket connection established: {connection_id}")
+#     print(f"New WebSocket connection established: {connection_id}")
     
-    try:
-        await websocket_handler(websocket, connection_id, "stock")
-    except WebSocketDisconnect:
-        print(f"WebSocket disconnected: {connection_id}")
-        del active_connections[connection_id]
-        del subscribed_tickers[connection_id]
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-        await websocket.close(code=1011)
-        raise HTTPException(status_code=500, detail=str(e))
+#     try:
+#         await websocket_handler(websocket, connection_id, "stock")
+#     except WebSocketDisconnect:
+#         print(f"WebSocket disconnected: {connection_id}")
+#         del active_connections[connection_id]
+#         del subscribed_tickers[connection_id]
+#     except Exception as e:
+#         print(f"WebSocket error: {e}")
+#         await websocket.close(code=1011)
+#         raise HTTPException(status_code=500, detail=str(e))
 
-async def websocket_handler(websocket: WebSocket, connection_id: str, data_type: str = "crypto"):
-    """Handle WebSocket connections and data updates"""
+# async def websocket_handler(websocket: WebSocket, connection_id: str, data_type: str = "crypto"):
+#     """Handle WebSocket connections and data updates"""
     
-    async def consumer_handler():
-        try:
-            async for data in websocket.iter_json():
-                print(f"Received WebSocket message: {data}")
-                if tickers := data.get("params", {}).get("ticker"):
-                    # Handle both string and array inputs
-                    if isinstance(tickers, str):
-                        tickers = [t.strip() for t in tickers.split(",") if t.strip()]
-                    elif isinstance(tickers, list):
-                        tickers = [t.strip() for t in tickers if t.strip()]
-                    else:
-                        continue
+#     async def consumer_handler():
+#         try:
+#             async for data in websocket.iter_json():
+#                 print(f"Received WebSocket message: {data}")
+#                 if tickers := data.get("params", {}).get("ticker"):
+#                     # Handle both string and array inputs
+#                     if isinstance(tickers, str):
+#                         tickers = [t.strip() for t in tickers.split(",") if t.strip()]
+#                     elif isinstance(tickers, list):
+#                         tickers = [t.strip() for t in tickers if t.strip()]
+#                     else:
+#                         continue
                     
-                    if tickers:  # Only update if we have valid tickers
-                        print(f"Updating subscribed tickers for {connection_id}: {tickers}")
-                        subscribed_tickers[connection_id] = set(tickers)
-        except WebSocketDisconnect:
-            print(f"Consumer WebSocket disconnected: {connection_id}")
-            return
-        except Exception as e:
-            print(f"Consumer error: {e}")
-            return
+#                     if tickers:  # Only update if we have valid tickers
+#                         print(f"Updating subscribed tickers for {connection_id}: {tickers}")
+#                         subscribed_tickers[connection_id] = set(tickers)
+#         except WebSocketDisconnect:
+#             print(f"Consumer WebSocket disconnected: {connection_id}")
+#             return
+#         except Exception as e:
+#             print(f"Consumer error: {e}")
+#             return
 
-    async def producer_handler():
-        headers = {"X-API-KEY": FINANCIAL_DATASETS_API_KEY}
-        endpoint = "crypto/prices/snapshot" if data_type == "crypto" else "prices/snapshot"
+#     async def producer_handler():
+#         headers = {"X-API-KEY": FINANCIAL_DATASETS_API_KEY}
+#         endpoint = "crypto/prices/snapshot" if data_type == "crypto" else "prices/snapshot"
         
-        while websocket.client_state != WebSocketState.DISCONNECTED:
-            try:
-                current_tickers = list(subscribed_tickers[connection_id])
-                if not current_tickers:
-                    await asyncio.sleep(1)
-                    continue
+#         while websocket.client_state != WebSocketState.DISCONNECTED:
+#             try:
+#                 current_tickers = list(subscribed_tickers[connection_id])
+#                 if not current_tickers:
+#                     await asyncio.sleep(1)
+#                     continue
                 
-                print(f"Fetching updates for tickers: {current_tickers}")
+#                 print(f"Fetching updates for tickers: {current_tickers}")
                 
-                for ticker in current_tickers:
-                    url = f'https://api.financialdatasets.ai/{endpoint}?ticker={ticker}'
-                    response = requests.get(url, headers=headers)
+#                 for ticker in current_tickers:
+#                     url = f'https://api.financialdatasets.ai/{endpoint}?ticker={ticker}'
+#                     response = requests.get(url, headers=headers)
                     
-                    if response.status_code == 200:
-                        data = response.json()
-                        snapshot = data.get('snapshot', {})
+#                     if response.status_code == 200:
+#                         data = response.json()
+#                         snapshot = data.get('snapshot', {})
                         
-                        if not snapshot:
-                            print(f"No snapshot data for {ticker}")
-                            continue
+#                         if not snapshot:
+#                             print(f"No snapshot data for {ticker}")
+#                             continue
                         
-                        # Ensure we have the required fields
-                        if 'price' not in snapshot:
-                            print(f"Missing price in snapshot for {ticker}: {snapshot}")
-                            continue
+#                         # Ensure we have the required fields
+#                         if 'price' not in snapshot:
+#                             print(f"Missing price in snapshot for {ticker}: {snapshot}")
+#                             continue
                         
-                        # Format timestamp
-                        if 'timestamp' in snapshot:
-                            timestamp = snapshot['timestamp']
-                            if isinstance(timestamp, str):
-                                from datetime import datetime
-                                try:
-                                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                                    snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-                                except ValueError:
-                                    pass
+#                         # Format timestamp
+#                         if 'timestamp' in snapshot:
+#                             timestamp = snapshot['timestamp']
+#                             if isinstance(timestamp, str):
+#                                 from datetime import datetime
+#                                 try:
+#                                     dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+#                                     snapshot['timestamp'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+#                                 except ValueError:
+#                                     pass
                         
-                        print(f"Sending update for {ticker}: {snapshot}")
-                        await websocket.send_json(snapshot)
-                    else:
-                        print(f"Error fetching data for {ticker}: {response.status_code} - {response.text}")
+#                         print(f"Sending update for {ticker}: {snapshot}")
+#                         await websocket.send_json(snapshot)
+#                     else:
+#                         print(f"Error fetching data for {ticker}: {response.status_code} - {response.text}")
                     
-                    await asyncio.sleep(1)  # Wait 1 second between updates
+#                     await asyncio.sleep(1)  # Wait 1 second between updates
                 
-                await asyncio.sleep(0.1)  # Small delay between ticker cycles
+#                 await asyncio.sleep(0.1)  # Small delay between ticker cycles
                 
-            except WebSocketDisconnect:
-                print(f"Producer WebSocket disconnected: {connection_id}")
-                return
-            except Exception as e:
-                print(f"Producer error: {e}")
-                await asyncio.sleep(1)  # Wait before retrying
+#             except WebSocketDisconnect:
+#                 print(f"Producer WebSocket disconnected: {connection_id}")
+#                 return
+#             except Exception as e:
+#                 print(f"Producer error: {e}")
+#                 await asyncio.sleep(1)  # Wait before retrying
     
-    consumer_task = asyncio.create_task(consumer_handler())
-    producer_task = asyncio.create_task(producer_handler())
+#     consumer_task = asyncio.create_task(consumer_handler())
+#     producer_task = asyncio.create_task(producer_handler())
     
-    done, pending = await asyncio.wait(
-        [consumer_task, producer_task],
-        return_when=asyncio.FIRST_COMPLETED
-    )
+#     done, pending = await asyncio.wait(
+#         [consumer_task, producer_task],
+#         return_when=asyncio.FIRST_COMPLETED
+#     )
     
-    for task in pending:
-        task.cancel()
+#     for task in pending:
+#         task.cancel()
 
 @register_widget({
     "name": "Stock Prices Historical",
@@ -1251,7 +1232,7 @@ async def websocket_handler(websocket: WebSocket, connection_id: str, data_type:
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "NVDA",
             "description": "Stock ticker to get historical prices for (Free tier: AAPL, MSFT, TSLA)",
             "optionsEndpoint": "/stock_tickers"
         },
@@ -1345,6 +1326,30 @@ def get_stock_prices_historical(
         content={"error": response.text}, status_code=response.status_code
     )
 
+@register_widget({
+    "name": "Earnings Press Releases",
+    "description": "Get earnings-related press releases for companies, including URL, publish date, and full text.",
+    "category": "Equity",
+    "subcategory": "Earnings",
+    "type": "markdown",
+    "widgetId": "earnings_press_releases",
+    "endpoint": "earnings_press_releases",
+    "gridData": {
+        "w": 40,
+        "h": 8
+    },
+    "params": [
+        {
+            "type": "endpoint",
+            "paramName": "ticker",
+            "label": "Symbol",
+            "value": "NVDA",
+            "description": "Company ticker to get earnings press releases for",
+            "multiSelect": False,
+            "optionsEndpoint": "/stock_tickers"
+        }
+    ]
+})
 @app.get("/earnings_press_releases")
 async def get_earnings_press_releases(ticker: str = Query(..., description="Company ticker")):
     """Get earnings press releases for a company"""
@@ -1438,7 +1443,7 @@ async def get_earnings_press_releases(ticker: str = Query(..., description="Comp
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "NVDA",
             "description": "Stock ticker to get insider trades for (Free tier: AAPL, MSFT, TSLA)",
             "optionsEndpoint": "/stock_tickers"
         },
@@ -1654,7 +1659,7 @@ async def get_institutional_ownership_by_investor(
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "NVDA",
             "description": "Stock ticker to get institutional ownership for (Free tier: AAPL, MSFT, TSLA)",
             "optionsEndpoint": "/stock_tickers"
         },
@@ -1749,7 +1754,7 @@ async def get_institutional_ownership_by_ticker(
             "type": "endpoint",
             "paramName": "ticker",
             "label": "Symbol",
-            "value": "AAPL",
+            "value": "NVDA",
             "description": "Ticker to get cash flow statement for (Free tier: AAPL, MSFT, TSLA)",
             "optionsEndpoint": "/stock_tickers"
         },

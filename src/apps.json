@@ -42,7 +42,6 @@
                 "h": 21,
                 "state": {
                   "params": {
-                    "ticker": "AAPL",
                     "limit": "20"
                   },
                   "chartView": {
@@ -117,9 +116,6 @@
                 "w": 40,
                 "h": 20,
                 "state": {
-                  "params": {
-                    "ticker": "MSFT"
-                  },
                   "chartView": {
                     "enabled": false,
                     "chartType": "line"
@@ -129,16 +125,16 @@
                       "columnOrder": {
                         "orderedColIds": [
                           "metric",
-                          "2024-06-30",
-                          "2023-06-30",
-                          "2022-06-30",
-                          "2021-06-30",
-                          "2020-06-30",
-                          "2019-06-30",
-                          "2018-06-30",
-                          "2017-06-30",
-                          "2016-06-30",
-                          "2015-06-30"
+                          "2025-01-26",
+                          "2024-01-28",
+                          "2023-01-29",
+                          "2022-01-30",
+                          "2021-01-31",
+                          "2020-01-26",
+                          "2019-01-27",
+                          "2018-01-28",
+                          "2017-01-29",
+                          "2016-01-31"
                         ]
                       }
                     }
@@ -152,9 +148,6 @@
                 "w": 40,
                 "h": 18,
                 "state": {
-                  "params": {
-                    "ticker": "MSFT"
-                  },
                   "chartView": {
                     "enabled": false,
                     "chartType": "line"
@@ -164,16 +157,16 @@
                       "columnOrder": {
                         "orderedColIds": [
                           "metric",
-                          "2024-06-30",
-                          "2023-06-30",
-                          "2022-06-30",
-                          "2021-06-30",
-                          "2020-06-30",
-                          "2019-06-30",
-                          "2018-06-30",
-                          "2017-06-30",
-                          "2016-06-30",
-                          "2015-06-30"
+                          "2025-01-26",
+                          "2024-01-28",
+                          "2023-01-29",
+                          "2022-01-30",
+                          "2021-01-31",
+                          "2020-01-26",
+                          "2019-01-27",
+                          "2018-01-28",
+                          "2017-01-29",
+                          "2016-01-31"
                         ]
                       }
                     }
@@ -187,9 +180,6 @@
                 "w": 40,
                 "h": 20,
                 "state": {
-                  "params": {
-                    "ticker": "MSFT"
-                  },
                   "chartView": {
                     "enabled": false,
                     "chartType": "line"
@@ -199,16 +189,16 @@
                       "columnOrder": {
                         "orderedColIds": [
                           "metric",
-                          "2024-06-30",
-                          "2023-06-30",
-                          "2022-06-30",
-                          "2021-06-30",
-                          "2020-06-30",
-                          "2019-06-30",
-                          "2018-06-30",
-                          "2017-06-30",
-                          "2016-06-30",
-                          "2015-06-30"
+                          "2025-01-26",
+                          "2024-01-28",
+                          "2023-01-29",
+                          "2022-01-30",
+                          "2021-01-31",
+                          "2020-01-26",
+                          "2019-01-27",
+                          "2018-01-28",
+                          "2017-01-29",
+                          "2016-01-31"
                         ]
                       }
                     }
@@ -222,9 +212,6 @@
                 "w": 40,
                 "h": 21,
                 "state": {
-                  "params": {
-                    "ticker": "MSFT"
-                  },
                   "chartModel": {
                     "modelType": "range",
                     "chartType": "groupedColumn",
@@ -622,23 +609,23 @@
                   },
                   "chartView": {
                     "enabled": false,
-                    "chartType": "line"
+                    "chartType": "groupedColumn"
                   },
                   "columnState": {
                     "default": {
                       "columnOrder": {
                         "orderedColIds": [
                           "metric",
-                          "2024-06-30",
-                          "2023-06-30",
-                          "2022-06-30",
-                          "2021-06-30",
-                          "2020-06-30",
-                          "2019-06-30",
-                          "2018-06-30",
-                          "2017-06-30",
-                          "2016-06-30",
-                          "2015-06-30"
+                          "2025-01-26",
+                          "2024-01-28",
+                          "2023-01-29",
+                          "2022-01-30",
+                          "2021-01-31",
+                          "2020-01-26",
+                          "2019-01-27",
+                          "2018-01-28",
+                          "2017-01-29",
+                          "2016-01-31"
                         ]
                       },
                       "focusedCell": {
@@ -663,9 +650,6 @@
                 "w": 40,
                 "h": 24,
                 "state": {
-                  "params": {
-                    "ticker": "MSFT"
-                  },
                   "chartView": {
                     "enabled": false,
                     "chartType": "line"
@@ -696,6 +680,19 @@
                     }
                   }
                 }
+              }
+            ]
+          },
+          "press-releases": {
+            "id": "press-releases",
+            "name": "Press Releases",
+            "layout": [
+              {
+                "i": "earnings_press_releases",
+                "x": 0,
+                "y": 2,
+                "w": 40,
+                "h": 20
               }
             ]
           },
@@ -776,7 +773,7 @@
                   },
                   "chartView": {
                     "enabled": false,
-                    "chartType": "line"
+                    "chartType": "stackedLine"
                   },
                   "columnState": {
                     "default": {
@@ -833,19 +830,6 @@
                 }
               }
             ]
-          },
-          "press-releases": {
-            "id": "press-releases",
-            "name": "Press Releases",
-            "layout": [
-              {
-                "i": "earnings_press_releases",
-                "x": 0,
-                "y": 2,
-                "w": 40,
-                "h": 20
-              }
-            ]
           }
         },
         "groups": [
@@ -853,14 +837,27 @@
             "name": "Group 1",
             "type": "endpointParam",
             "paramName": "ticker",
-            "defaultValue": "AAPL",
+            "defaultValue": "NVDA",
             "widgetIds": [
               "company_facts",
               "stock_news",
               "stock_prices_historical",
               "balance",
+              "cash_flow",
+              "income",
+              "financial_metrics",
               "insider_trades",
               "institutional_ownership_by_ticker",
+              "earnings_press_releases"
+            ]
+          },
+          {
+            "name": "Group 2",
+            "type": "param",
+            "paramName": "period",
+            "defaultValue": "annual",
+            "widgetIds": [
+              "balance",
               "cash_flow",
               "income",
               "financial_metrics"
