@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import os
 import requests
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -58,8 +58,7 @@ def register_widget(widget_config):
 app = FastAPI()
 
 origins = [
-    "https://pro.openbb.co",
-    "http://localhost:1420"
+    "*"
 ]
 
 app.add_middleware(
@@ -72,6 +71,31 @@ app.add_middleware(
 
 load_dotenv()
 FINANCIAL_DATASETS_API_KEY = os.getenv("FINANCIAL_DATASETS_API_KEY")
+
+def get_api_key(request: Request) -> str:
+    """Get Financial Datasets API key from request headers or environment variable.
+    
+    Args:
+        request (Request): FastAPI request object to access headers
+    
+    Returns:
+        str: API key from headers or environment
+    
+    Raises:
+        HTTPException: If no API key is found
+    """
+    # Check for API key in headers first, fallback to environment variable
+    api_key = (request.headers.get('X-FINANCIAL-DATASETS-API-KEY') or 
+               request.headers.get('financial-datasets-api-key') or
+               FINANCIAL_DATASETS_API_KEY)
+    
+    if not api_key:
+        raise HTTPException(
+            status_code=401, 
+            detail="Financial Datasets API key required. Please add 'X-FINANCIAL-DATASETS-API-KEY' header or set FINANCIAL_DATASETS_API_KEY environment variable."
+        )
+    
+    return api_key
 
 
 @app.get("/")
@@ -163,10 +187,12 @@ def get_widgets():
     ]
 })
 @app.get("/income")
-def get_income(ticker: str, period: str, limit: int):
+def get_income(request: Request, ticker: str, period: str, limit: int):
     """Get income statement"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     url = (
         f'https://api.financialdatasets.ai/financials/income-statements'
@@ -235,10 +261,12 @@ def get_income(ticker: str, period: str, limit: int):
     ]
 })
 @app.get("/balance")
-def get_balance(ticker: str, period: str, limit: int):
+def get_balance(request: Request, ticker: str, period: str, limit: int):
     """Get balance sheet"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     url = (
         f'https://api.financialdatasets.ai/financials/balance-sheets'
@@ -371,10 +399,12 @@ def transpose_financial_data(statements):
     return transposed
 
 @app.get("/financial_metrics")
-def get_financial_metrics(ticker: str, period: str, limit: int):
+def get_financial_metrics(request: Request, ticker: str, period: str, limit: int):
     """Get financial metrics and ratios"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = (
@@ -445,10 +475,12 @@ def get_financial_metrics(ticker: str, period: str, limit: int):
 })
 
 @app.get("/cash_flow")
-def get_cash_flow(ticker: str, period: str, limit: int):
+def get_cash_flow(request: Request, ticker: str, period: str, limit: int):
     """Get cash flow statement"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     url = (
         f'https://api.financialdatasets.ai/financials/cash-flow-statements'
@@ -506,10 +538,12 @@ def get_cash_flow(ticker: str, period: str, limit: int):
     ]
 })
 @app.get("/company_facts")
-def get_company_facts(ticker: str):
+def get_company_facts(request: Request, ticker: str):
     """Get company facts for a ticker"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = (
@@ -614,6 +648,7 @@ def get_company_facts(ticker: str):
 })
 @app.get("/crypto_prices")
 def get_crypto_prices(
+    request: Request,
     ticker: str,
     interval: str,
     interval_multiplier: int,
@@ -621,8 +656,10 @@ def get_crypto_prices(
     end_date: str
 ):
     """Get historical crypto prices"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = (
@@ -857,10 +894,15 @@ def get_crypto_prices(
 #         task.cancel()
 
 # Add this function to fetch available tickers
-async def get_available_tickers():
+async def get_available_tickers(api_key: str = None):
     """Fetch available tickers for earnings press releases"""
+    # Use provided API key or fallback to environment variable
+    key = api_key or FINANCIAL_DATASETS_API_KEY
+    if not key:
+        return [{"label": "NVDA", "value": "NVDA"}]
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": key
     }
     
     url = 'https://api.financialdatasets.ai/earnings/press-releases/tickers/'
@@ -883,18 +925,53 @@ async def get_available_tickers():
 
 # Add back the endpoint to get available tickers
 @app.get("/earnings_press_releases/tickers")
-async def get_tickers():
+async def get_tickers(request: Request):
     """Get available tickers for earnings press releases"""
-    return await get_available_tickers()
+    # Get API key from request headers or env
+    api_key = (request.headers.get('X-FINANCIAL-DATASETS-API-KEY') or 
+               request.headers.get('financial-datasets-api-key') or
+               FINANCIAL_DATASETS_API_KEY)
+    return await get_available_tickers(api_key)
 
 @app.get("/stock_tickers")
-def get_stock_tickers():
-    """Get available stock tickers for free tier"""
+def get_stock_tickers(request: Request):
+    """Get available stock tickers from Financial Datasets API"""
+    # For stock tickers endpoint, we'll be more lenient and provide defaults if no key
+    api_key = (request.headers.get('X-FINANCIAL-DATASETS-API-KEY') or 
+               request.headers.get('financial-datasets-api-key') or
+               FINANCIAL_DATASETS_API_KEY)
+    
+    if not api_key:
+        # Return default list if no API key
+        return [
+            {"label": "AAPL", "value": "AAPL"},
+            {"label": "MSFT", "value": "MSFT"},
+            {"label": "TSLA", "value": "TSLA"},
+            {"label": "NVDA", "value": "NVDA"}
+        ]
+    
+    headers = {
+        "X-API-KEY": api_key
+    }
+    
+    url = 'https://api.financialdatasets.ai/financials/tickers/'
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            tickers = data.get('tickers', [])
+            # Return list with label same as value
+            return [{"label": ticker, "value": ticker} for ticker in tickers]
+    except Exception as e:
+        print(f"Error fetching stock tickers: {e}")
+    
+    # Fallback to default list if API call fails
     return [
-        {"label": "Apple Inc. (AAPL)", "value": "AAPL"},
-        {"label": "Microsoft Corp. (MSFT)", "value": "MSFT"},
-        {"label": "Tesla Inc. (TSLA)", "value": "TSLA"},
-        {"label": "NVIDIA Corp. (NVDA)", "value": "NVDA"}
+        {"label": "AAPL", "value": "AAPL"},
+        {"label": "MSFT", "value": "MSFT"},
+        {"label": "TSLA", "value": "TSLA"},
+        {"label": "NVDA", "value": "NVDA"}
     ]
 
 @register_widget({
@@ -943,10 +1020,12 @@ def get_stock_tickers():
 })
 
 @app.get("/stock_news")
-async def get_stock_news(ticker: str = Query(..., description="Stock ticker"), limit: int = 10):
+async def get_stock_news(request: Request, ticker: str = Query(..., description="Stock ticker"), limit: int = 10):
     """Get news articles for a stock"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = (
@@ -1275,6 +1354,7 @@ async def get_stock_news(ticker: str = Query(..., description="Stock ticker"), l
 })
 @app.get("/stock_prices_historical")
 def get_stock_prices_historical(
+    request: Request,
     ticker: str,
     interval: str,
     interval_multiplier: int,
@@ -1282,8 +1362,10 @@ def get_stock_prices_historical(
     end_date: str
 ):
     """Get historical stock prices"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = (
@@ -1351,10 +1433,12 @@ def get_stock_prices_historical(
     ]
 })
 @app.get("/earnings_press_releases")
-async def get_earnings_press_releases(ticker: str = Query(..., description="Company ticker")):
+async def get_earnings_press_releases(request: Request, ticker: str = Query(..., description="Company ticker")):
     """Get earnings press releases for a company"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = (
@@ -1458,10 +1542,12 @@ async def get_earnings_press_releases(ticker: str = Query(..., description="Comp
 })
 
 @app.get("/insider_trades")
-async def get_insider_trades(ticker: str = Query(..., description="Stock ticker"), limit: int = 50):
+async def get_insider_trades(request: Request, ticker: str = Query(..., description="Stock ticker"), limit: int = 50):
     """Get insider trading activity for a stock"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = (
@@ -1511,10 +1597,18 @@ async def get_insider_trades(ticker: str = Query(..., description="Stock ticker"
     )
 
 @app.get("/institutional_investors")
-async def get_institutional_investors():
+async def get_institutional_investors(request: Request):
     """Get list of available institutional investors"""
+    # For options endpoints, be more lenient and provide empty list if no key
+    api_key = (request.headers.get('X-FINANCIAL-DATASETS-API-KEY') or 
+               request.headers.get('financial-datasets-api-key') or
+               FINANCIAL_DATASETS_API_KEY)
+    
+    if not api_key:
+        return []
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = 'https://api.financialdatasets.ai/institutional-ownership/investors/'
@@ -1581,12 +1675,15 @@ async def get_institutional_investors():
 
 @app.get("/institutional_ownership_by_investor")
 async def get_institutional_ownership_by_investor(
+    request: Request,
     investor: str = Query(..., description="Institutional investor name"),
     limit: int = 100
 ):
     """Get institutional ownership data for an investor"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = (
@@ -1675,12 +1772,15 @@ async def get_institutional_ownership_by_investor(
 
 @app.get("/institutional_ownership_by_ticker")
 async def get_institutional_ownership_by_ticker(
+    request: Request,
     ticker: str = Query(..., description="Stock ticker"),
     limit: int = 100
 ):
     """Get institutional ownership data for a stock"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     
     url = (
@@ -1781,10 +1881,12 @@ async def get_institutional_ownership_by_ticker(
 })
 
 @app.get("/cash_flow")
-def get_cash_flow(ticker: str, period: str, limit: int):
+def get_cash_flow(request: Request, ticker: str, period: str, limit: int):
     """Get cash flow statement"""
+    api_key = get_api_key(request)
+    
     headers = {
-        "X-API-KEY": FINANCIAL_DATASETS_API_KEY
+        "X-API-KEY": api_key
     }
     url = (
         f'https://api.financialdatasets.ai/financials/cash-flow-statements'
