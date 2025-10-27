@@ -22,8 +22,7 @@ FINANCIAL_DATASETS_API_KEY=your-api-key-here
 #### Option B: Request Headers (override)
 You can override the API key on a per-request basis by including it in the request headers. This is useful for client applications that manage their own API keys:
 
-- `X-FINANCIAL-DATASETS-API-KEY: your-api-key`
-- `financial-datasets-api-key: your-api-key`
+- `X-API-KEY: your-api-key`
 
 If both header and environment variable are present, the header takes precedence.
 
@@ -49,7 +48,7 @@ That's it, now you can access data from that widget.
 
 All endpoints that fetch data from Financial Datasets require authentication. The API key is resolved in this order:
 
-1. **Request Header** (highest priority): `X-FINANCIAL-DATASETS-API-KEY` or `financial-datasets-api-key`
+1. **Request Header** (highest priority): `X-API-KEY`
 2. **Environment Variable**: `FINANCIAL_DATASETS_API_KEY`
 
 If no API key is found, most endpoints will return a 401 Unauthorized error. Some UI-critical endpoints (`/stock_tickers`, `/institutional_investors`) will return empty data to allow the interface to load.
@@ -61,7 +60,7 @@ import requests
 
 # Using header override
 headers = {
-    "X-FINANCIAL-DATASETS-API-KEY": "your-api-key"
+    "X-API-KEY": "your-api-key"
 }
 
 response = requests.get(

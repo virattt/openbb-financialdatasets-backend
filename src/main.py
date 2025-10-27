@@ -85,14 +85,13 @@ def get_api_key(request: Request) -> str:
         HTTPException: If no API key is found
     """
     # Check for API key in headers first, fallback to environment variable
-    api_key = (request.headers.get('X-FINANCIAL-DATASETS-API-KEY') or 
-               request.headers.get('financial-datasets-api-key') or
+    api_key = (request.headers.get('X-API-KEY') or
                FINANCIAL_DATASETS_API_KEY)
     
     if not api_key:
         raise HTTPException(
             status_code=401, 
-            detail="Financial Datasets API key required. Please add 'X-FINANCIAL-DATASETS-API-KEY' header or set FINANCIAL_DATASETS_API_KEY environment variable."
+            detail="API key required. Please add 'X-API-KEY' header or set FINANCIAL_DATASETS_API_KEY environment variable."
         )
     
     return api_key
@@ -928,8 +927,7 @@ async def get_available_tickers(api_key: str = None):
 async def get_tickers(request: Request):
     """Get available tickers for earnings press releases"""
     # Get API key from request headers or env
-    api_key = (request.headers.get('X-FINANCIAL-DATASETS-API-KEY') or 
-               request.headers.get('financial-datasets-api-key') or
+    api_key = (request.headers.get('X-API-KEY') or
                FINANCIAL_DATASETS_API_KEY)
     return await get_available_tickers(api_key)
 
@@ -937,8 +935,7 @@ async def get_tickers(request: Request):
 def get_stock_tickers(request: Request):
     """Get available stock tickers from Financial Datasets API"""
     # For stock tickers endpoint, we'll be more lenient and provide defaults if no key
-    api_key = (request.headers.get('X-FINANCIAL-DATASETS-API-KEY') or 
-               request.headers.get('financial-datasets-api-key') or
+    api_key = (request.headers.get('X-API-KEY') or
                FINANCIAL_DATASETS_API_KEY)
     
     if not api_key:
@@ -1600,8 +1597,7 @@ async def get_insider_trades(request: Request, ticker: str = Query(..., descript
 async def get_institutional_investors(request: Request):
     """Get list of available institutional investors"""
     # For options endpoints, be more lenient and provide empty list if no key
-    api_key = (request.headers.get('X-FINANCIAL-DATASETS-API-KEY') or 
-               request.headers.get('financial-datasets-api-key') or
+    api_key = (request.headers.get('X-API-KEY') or
                FINANCIAL_DATASETS_API_KEY)
     
     if not api_key:
