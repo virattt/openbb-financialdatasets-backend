@@ -42,7 +42,7 @@
                 "h": 21,
                 "state": {
                   "params": {
-                    "limit": "20"
+                    "limit": "10"
                   },
                   "chartView": {
                     "enabled": false,
