@@ -143,7 +143,7 @@ def get_widgets():
     "description": "Financial statements that provide information about a company's revenues, expenses, and profits over a specific period.",
     "category": "Equity",
     "subcategory": "Financials",
-    "widgetType": "individual",
+    "type": "table",
     "widgetId": "income",
     "endpoint": "income",
     "gridData": {
@@ -290,7 +290,7 @@ def get_balance(request: Request, ticker: str, period: str, limit: int):
     "description": "Get key financial metrics and ratios including profitability, efficiency, liquidity, and leverage ratios.",
     "category": "Equity",
     "subcategory": "Financials",
-    "widgetType": "individual",
+    "type": "table",
     "widgetId": "financial_metrics",
     "endpoint": "financial_metrics",
     "gridData": {
@@ -430,7 +430,7 @@ def get_financial_metrics(request: Request, ticker: str, period: str, limit: int
     "description": "Financial statements that provide information about a company's cash inflows and outflows over a specific period.",
     "category": "Equity",
     "subcategory": "Financials",
-    "widgetType": "individual",
+    "type": "table",
     "widgetId": "cash_flow",
     "endpoint": "cash_flow",
     "gridData": {
@@ -472,12 +472,11 @@ def get_financial_metrics(request: Request, ticker: str, period: str, limit: int
         }
     ]
 })
-
 @app.get("/cash_flow")
 def get_cash_flow(request: Request, ticker: str, period: str, limit: int):
     """Get cash flow statement"""
     api_key = get_api_key(request)
-    
+
     headers = {
         "X-API-KEY": api_key
     }
@@ -492,11 +491,7 @@ def get_cash_flow(request: Request, ticker: str, period: str, limit: int):
 
     if response.status_code == 200:
         data = response.json()
-        print(f"API Response keys: {data.keys()}")
         statements = data.get('cash_flow_statements', [])
-        print(f"Number of statements from API: {len(statements)}")
-        if statements:
-            print("First statement from API:", statements[0])
         return transpose_financial_data(statements)
 
     print(f"Request error {response.status_code}: {response.text}")
@@ -691,12 +686,10 @@ def get_crypto_prices(
                     except ValueError:
                         pass  # Keep original if parsing fails
         
-        crypto_prices = prices["prices"]
-
-        for price in crypto_prices:
+        for price in prices:
             price.pop('ticker', None)
 
-        return crypto_prices
+        return prices
 
     print(f"Request error {response.status_code}: {response.text}")
     return JSONResponse(
@@ -1019,6 +1012,7 @@ def get_stock_tickers(request: Request):
 @app.get("/stock_news")
 async def get_stock_news(request: Request, ticker: str = Query(..., description="Stock ticker"), limit: int = 10):
     """Get news articles for a stock"""
+    limit = min(limit, 10)
     api_key = get_api_key(request)
     
     headers = {
@@ -1820,87 +1814,8 @@ async def get_institutional_ownership_by_ticker(
             # Remove unwanted fields
             holding.pop('ticker', None)
             holding.pop('company_name', None)
-        
+
         return holdings
-
-    print(f"Request error {response.status_code}: {response.text}")
-    return JSONResponse(
-        content={"error": response.text}, status_code=response.status_code
-    )
-
-@register_widget({
-    "name": "Cash Flow Statement",
-    "description": "Financial statements that provide information about a company's cash inflows and outflows over a specific period.",
-    "category": "Equity",
-    "subcategory": "Financials",
-    "widgetType": "individual",
-    "widgetId": "cash_flow",
-    "endpoint": "cash_flow",
-    "gridData": {
-        "w": 80,
-        "h": 12
-    },
-    "data": {
-        "table": {
-            "showAll": True
-        }
-    },
-    "params": [
-        {
-            "type": "endpoint",
-            "paramName": "ticker",
-            "label": "Symbol",
-            "value": "NVDA",
-            "description": "Ticker to get cash flow statement for (Free tier: AAPL, MSFT, TSLA)",
-            "optionsEndpoint": "/stock_tickers"
-        },
-        {
-            "type": "text",
-            "value": "annual",
-            "paramName": "period",
-            "label": "Period",
-            "description": "Period to get statements from",
-            "options": [
-                {"value": "annual", "label": "Annual"},
-                {"value": "quarterly", "label": "Quarterly"},
-                {"value": "ttm", "label": "TTM"}
-            ]
-        },
-        {
-            "type": "number",
-            "paramName": "limit",
-            "label": "Number of Statements",
-            "value": "10",
-            "description": "Number of statements to display"
-        }
-    ]
-})
-
-@app.get("/cash_flow")
-def get_cash_flow(request: Request, ticker: str, period: str, limit: int):
-    """Get cash flow statement"""
-    api_key = get_api_key(request)
-    
-    headers = {
-        "X-API-KEY": api_key
-    }
-    url = (
-        f'https://api.financialdatasets.ai/financials/cash-flow-statements'
-        f'?ticker={ticker}'
-        f'&period={period}'
-        f'&limit={limit}'
-    )
-
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        data = response.json()
-        print(f"API Response keys: {data.keys()}")
-        statements = data.get('cash_flow_statements', [])
-        print(f"Number of statements from API: {len(statements)}")
-        if statements:
-            print("First statement from API:", statements[0])
-        return transpose_financial_data(statements)
 
     print(f"Request error {response.status_code}: {response.text}")
     return JSONResponse(
