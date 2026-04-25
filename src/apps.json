@@ -797,39 +797,6 @@
                 }
               }
             ]
-          },
-          "crypto": {
-            "id": "crypto",
-            "name": "Crypto",
-            "layout": [
-              {
-                "i": "crypto_prices",
-                "x": 0,
-                "y": 2,
-                "w": 40,
-                "h": 20,
-                "state": {
-                  "chartView": {
-                    "enabled": false,
-                    "chartType": "line"
-                  },
-                  "columnState": {
-                    "default": {
-                      "columnOrder": {
-                        "orderedColIds": [
-                          "open",
-                          "close",
-                          "high",
-                          "low",
-                          "volume",
-                          "time"
-                        ]
-                      }
-                    }
-                  }
-                }
-              }
-            ]
           }
         },
         "groups": [
